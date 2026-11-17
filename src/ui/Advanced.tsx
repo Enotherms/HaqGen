@@ -2,12 +2,14 @@ import { PanelSectionRow, SliderField, ToggleField } from "@decky/ui";
 import { ProfileInfo, Settings } from "../api";
 import { S } from "../strings";
 import { useInfo } from "./info";
+import { Hint } from "./theme";
 
 export function Advanced({ profile, onChange }: { profile: ProfileInfo; onChange: (s: Settings) => void }) {
   const flowInfo = useInfo(S.flowScaleInfo);
   const perfInfo = useInfo(S.perfModelInfo);
   return (
     <>
+      <Hint>{S.advancedHint}</Hint>
       <PanelSectionRow>
         <SliderField
           label={S.flowScale}
