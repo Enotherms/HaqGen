@@ -13,7 +13,7 @@ import {
 } from "../logic";
 import { S } from "../strings";
 import { useInfo } from "./info";
-import { Hint, PlainButton, PrimaryButton, SectionHeader } from "./theme";
+import { Hint, PlainButton, PrimaryButton, SectionHeader, SegmentedChoice } from "./theme";
 
 interface Props {
   scope: ScopeResult;
@@ -25,7 +25,6 @@ interface Props {
 
 export function NowPlaying({ scope, onMultiplier, onChange, onSaveForGame, onUseDefault }: Props) {
   const p = scope.profile;
-  const presetIndex = p.preset ? PRESET_ORDER.indexOf(p.preset as never) : 1;
   const frameGenInfo = useInfo(S.frameGenInfo);
   const presetInfo = useInfo(p.preset ? `${RESTART.instant}.` : `${S.presetCustom} ${RESTART.instant}.`);
   const saveInfo = useInfo(S.saveForGameInfo);
@@ -56,20 +55,13 @@ export function NowPlaying({ scope, onMultiplier, onChange, onSaveForGame, onUse
       </PanelSectionRow>
       {scope.enabled && (
         <>
-          <PanelSectionRow>
-            <SliderField
-              label={S.preset}
-              description={presetInfo}
-              value={presetIndex}
-              min={0}
-              max={2}
-              step={1}
-              notchCount={3}
-              notchTicksVisible
-              notchLabels={PRESET_ORDER.map((key, i) => ({ notchIndex: i, label: PRESET_LABELS[key] }))}
-              onChange={(i) => onChange({ preset: PRESET_ORDER[i] })}
-            />
-          </PanelSectionRow>
+          <SegmentedChoice
+            label={S.preset}
+            description={presetInfo}
+            options={PRESET_ORDER.map((key) => ({ value: key, label: PRESET_LABELS[key] }))}
+            value={(p.preset as (typeof PRESET_ORDER)[number] | null) ?? null}
+            onChange={(key) => onChange({ preset: key })}
+          />
           <Hint>{frameLimitTip(p.multiplier)}</Hint>
         </>
       )}
