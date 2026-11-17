@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable
 
-from .config import Config, ConfigError, Profile, load_config, save_config
+from .config import Config, ConfigError, Profile, load_config, needs_upgrade, save_config
 from .install import allowed_roots, install_lsfg_vk, lsfg_present
 from .lsfg_cli import healthcheck, validate_config
 from .locate import find_dll, game_install_dir, list_installed_games, lossless_on_wrong_branch
@@ -177,8 +177,9 @@ def get_state(paths: Paths) -> dict:
     try:
         cfg = load_config(paths.config_path)
         state["profiles"] = [p.name for p in cfg.profiles if _is_haqgen(p)]
-        if dll is not None and paths.config_path.exists() and cfg.dll != str(dll):
-            save_config(paths.config_path, dataclasses.replace(cfg, dll=str(dll)))
+        stale_dll = dll is not None and cfg.dll != str(dll)
+        if paths.config_path.exists() and (stale_dll or needs_upgrade(paths.config_path)):
+            save_config(paths.config_path, dataclasses.replace(cfg, dll=str(dll)) if stale_dll else cfg)
     except ConfigError as exc:
         state["error"] = str(exc)
     except OSError as exc:

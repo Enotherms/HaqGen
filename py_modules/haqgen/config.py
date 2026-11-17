@@ -183,3 +183,12 @@ def save_config(path: Path, cfg: Config) -> None:
         except OSError:
             pass
         raise
+
+
+def needs_upgrade(path: Path) -> bool:
+    """True when an existing, readable config lacks lsfg-vk 2's required version line."""
+    try:
+        data = tomllib.loads(Path(path).read_text(encoding="utf-8"))
+    except (OSError, tomllib.TOMLDecodeError, UnicodeDecodeError):
+        return False
+    return data.get("version") != CONFIG_VERSION

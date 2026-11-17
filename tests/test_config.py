@@ -160,3 +160,16 @@ def test_saved_config_keeps_version_2_and_log_settings(tmp_path):
     assert parsed["version"] == 2
     assert parsed["global"]["log_level"] == "debug"
     assert parsed["global"]["log_file"] == "/home/deck/lsfg-vk.log"
+
+
+def test_needs_upgrade(tmp_path):
+    from haqgen.config import needs_upgrade
+
+    p = tmp_path / "conf.toml"
+    assert needs_upgrade(p) is False
+    p.write_text("[global]\n", encoding="utf-8")
+    assert needs_upgrade(p) is True
+    p.write_text("version = 2\n[global]\n", encoding="utf-8")
+    assert needs_upgrade(p) is False
+    p.write_text("[[broken", encoding="utf-8")
+    assert needs_upgrade(p) is False

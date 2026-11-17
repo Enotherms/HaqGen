@@ -478,3 +478,13 @@ def test_state_does_not_create_config_when_none_exists(paths, tmp_path):
     add_dll(tmp_path)
     service.get_state(paths)
     assert not paths.config_path.exists()
+
+
+def test_state_upgrades_config_missing_version(paths, tmp_path):
+    dll = add_dll(tmp_path)
+    paths.config_path.parent.mkdir(parents=True)
+    paths.config_path.write_text(f'[global]\ndll = "{dll}"\nlog_level = "debug"\n', encoding="utf-8")
+    service.get_state(paths)
+    import tomllib
+    parsed = tomllib.loads(paths.config_path.read_text(encoding="utf-8"))
+    assert parsed["version"] == 2 and parsed["global"]["log_level"] == "debug"
