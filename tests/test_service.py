@@ -430,3 +430,26 @@ def test_remove_all_removes_launcher_and_markers(paths, tmp_path):
     assert not (paths.local_dir / "bin" / "haqgen-launch").exists()
     assert not games_dir(paths).exists()
     assert [p.name for p in load_config(paths.config_path).profiles] == []
+
+
+def test_list_profiles_default_first_then_games(paths):
+    service.save_profile(paths, 7, "Zelda", {})
+    service.save_profile(paths, 8, "Alpha Game", {})
+    save_config(paths.config_path, Config(profiles=load_config(paths.config_path).profiles + [Profile(name="Mine")]))
+    assert service.list_profiles(paths) == [
+        {"app_id": None, "game": None, "label": "Default"},
+        {"app_id": 8, "game": "Alpha Game", "label": "Alpha Game"},
+        {"app_id": 7, "game": "Zelda", "label": "Zelda"},
+    ]
+
+
+def test_list_profiles_handles_corrupt_config(paths):
+    paths.config_path.parent.mkdir(parents=True)
+    paths.config_path.write_text("[[profile\n", encoding="utf-8")
+    assert service.list_profiles(paths) == [{"app_id": None, "game": None, "label": "Default"}]
+
+
+def test_list_profiles_round_trips_into_get_scope(paths):
+    service.save_profile(paths, 9, "Odd  Name: Ed.", {"multiplier": 3})
+    entry = [p for p in service.list_profiles(paths) if p["app_id"] == 9][0]
+    assert service.get_scope(paths, entry["app_id"], entry["game"])["profile"]["multiplier"] == 3

@@ -1,4 +1,5 @@
 import { Field, PanelSectionRow, SliderField } from "@decky/ui";
+import { ReactNode } from "react";
 import { ScopeResult, Settings } from "../api";
 import {
   frameLimitTip,
@@ -17,13 +18,15 @@ import { Hint, PlainButton, PrimaryButton, SectionHeader, SegmentedChoice } from
 
 interface Props {
   scope: ScopeResult;
+  running: boolean;
+  picker: ReactNode;
   onMultiplier: (position: number) => void;
   onChange: (s: Settings) => void;
   onSaveForGame: () => void;
   onUseDefault: () => void;
 }
 
-export function NowPlaying({ scope, onMultiplier, onChange, onSaveForGame, onUseDefault }: Props) {
+export function NowPlaying({ scope, running, picker, onMultiplier, onChange, onSaveForGame, onUseDefault }: Props) {
   const p = scope.profile;
   const frameGenInfo = useInfo(S.frameGenInfo);
   const presetInfo = useInfo(p.preset ? `${RESTART.instant}.` : `${S.presetCustom} ${RESTART.instant}.`);
@@ -31,11 +34,12 @@ export function NowPlaying({ scope, onMultiplier, onChange, onSaveForGame, onUse
   const defaultInfo = useInfo(S.useDefaultInfo);
   return (
     <>
-      <SectionHeader title={S.nowPlaying} />
+      <SectionHeader title={running ? S.nowPlaying : S.profileSection} />
+      {picker}
       <PanelSectionRow>
         <Field
-          label={scopeTitle(scope)}
-          description={`${scopeLine(scope)}${scope.enabled ? ` · ${summaryLine(p)}` : " · Off"}`}
+          label={scopeTitle({ ...scope, running })}
+          description={`${scopeLine({ ...scope, running })}${scope.enabled ? ` · ${summaryLine(p)}` : " · Off"}`}
           bottomSeparator="none"
         />
       </PanelSectionRow>
@@ -65,7 +69,7 @@ export function NowPlaying({ scope, onMultiplier, onChange, onSaveForGame, onUse
           <Hint>{frameLimitTip(p.multiplier)}</Hint>
         </>
       )}
-      {scope.game && scope.scope === "default" && (
+      {running && scope.game && scope.scope === "default" && (
         <>
           <PrimaryButton onClick={onSaveForGame}>{S.saveForGame(scope.game)}</PrimaryButton>
           {saveInfo && <Hint>{saveInfo}</Hint>}

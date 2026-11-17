@@ -7,6 +7,8 @@ import {
   getScope,
   getState,
   launchOption,
+  listProfiles,
+  ProfileEntry,
   readLog,
   resetDefaults,
   saveDefault,
@@ -18,7 +20,8 @@ import {
   State,
 } from "../api";
 import { readCache, writeCache } from "../cache";
-import { debounce, describeError, positionToMultiplier, restartBanner } from "../logic";
+import { copyText } from "../clipboard";
+import { debounce, describeError, editTarget, positionToMultiplier, restartBanner } from "../logic";
 import { S } from "../strings";
 import { Advanced } from "./Advanced";
 import { InfoContext } from "./info";
@@ -27,10 +30,12 @@ import { MoreSection } from "./MoreSection";
 import { NowPlaying } from "./NowPlaying";
 import { loadValue, saveValue } from "./persist";
 import { StatusCard } from "./StatusCard";
-import { CollapsePill, SectionHeader } from "./theme";
+import { ProfilePicker } from "./ProfilePicker";
+import { CollapsePill, SectionHeader, ThemeStyle } from "./theme";
 import { useRunningGame } from "./useRunningGame";
 
 const KEY_INFO = "haqgen.showInfo";
+const KEY_PICKED = "haqgen.pickedProfile";
 const KEY_ADVANCED = "haqgen.showAdvanced";
 const KEY_MORE = "haqgen.showMore";
 const DEFAULT_KEY = 0;
@@ -49,8 +54,20 @@ function Notice({ text, strong }: { text: string; strong?: boolean }) {
 
 export function Panel() {
   const running = useRunningGame();
-  const appId = running?.appId ?? null;
-  const gameName = running?.name ?? null;
+  const [profiles, setProfiles] = useState<ProfileEntry[]>([{ app_id: null, game: null, label: "Default" }]);
+  const [picked, setPicked] = useState<ProfileEntry | null>(() => {
+    try {
+      const raw = loadValue(KEY_PICKED);
+      const v = raw ? JSON.parse(raw) : null;
+      return v && (typeof v.app_id === "number" || v.app_id === null) ? (v as ProfileEntry) : null;
+    } catch {
+      return null;
+    }
+  });
+  const target = editTarget(running, picked);
+  const appId = target.appId;
+  const gameName = target.game;
+  const isRunning = running !== null;
   const cacheKey = appId ?? DEFAULT_KEY;
 
   const [state, setState] = useState<State | null>((readCache().state as State) ?? null);
@@ -71,6 +88,7 @@ export function Panel() {
     };
   }, []);
   useEffect(() => saveValue(KEY_INFO, showInfo ? "1" : "0"), [showInfo]);
+  useEffect(() => saveValue(KEY_PICKED, picked ? JSON.stringify(picked) : null), [picked]);
   useEffect(() => saveValue(KEY_ADVANCED, showAdvanced ? "1" : "0"), [showAdvanced]);
   useEffect(() => saveValue(KEY_MORE, showMore ? "1" : "0"), [showMore]);
 
@@ -94,9 +112,20 @@ export function Panel() {
     }
   }, [appId, gameName]);
 
+  const loadProfiles = useCallback(async () => {
+    try {
+      const list = await listProfiles();
+      if (!mounted.current) return;
+      setProfiles(list);
+      setPicked((cur) => (cur && cur.app_id !== null && !list.some((p) => p.app_id === cur.app_id) ? null : cur));
+    } catch {
+    }
+  }, []);
+
   useEffect(() => {
     refresh();
-  }, [refresh]);
+    loadProfiles();
+  }, [refresh, loadProfiles]);
 
   useEffect(() => {
     setScope((readCache().profiles?.[appId ?? DEFAULT_KEY] as ScopeResult) ?? null);
@@ -105,8 +134,8 @@ export function Panel() {
   }, [loadScope, appId]);
 
   const needsRestart = useCallback(() => {
-    if (appId !== null) setRestartFor(appId);
-  }, [appId]);
+    if (isRunning && appId !== null) setRestartFor(appId);
+  }, [isRunning, appId]);
 
   const saveActive = useCallback(
     async (s: Settings) => {
@@ -157,6 +186,7 @@ export function Panel() {
     if (!r.ok) setMessage(describeError(r.error));
     needsRestart();
     await loadScope();
+    await loadProfiles();
   };
 
   const onUseDefault = async () => {
@@ -164,17 +194,14 @@ export function Panel() {
     const r = await deleteProfile(appId, gameName);
     if (!r.ok) setMessage(describeError(r.error));
     needsRestart();
+    if (!isRunning) setPicked(null);
     await loadScope();
+    await loadProfiles();
   };
 
   const onCopy = async () => {
     const text = await launchOption();
-    try {
-      await navigator.clipboard.writeText(text);
-      toast(S.copied);
-    } catch {
-      toast(S.copyFailed(text));
-    }
+    toast((await copyText(text)) ? S.copied : S.copyFailed(text));
   };
 
   const onShowLog = async () => {
@@ -190,7 +217,9 @@ export function Panel() {
     const r = await resetDefaults();
     toast(r.ok ? S.resetDone : describeError(r.error));
     needsRestart();
+    setPicked(null);
     await loadScope();
+    await loadProfiles();
     await refresh();
   };
 
@@ -226,12 +255,18 @@ export function Panel() {
 
   const notice = message ?? state.error ?? scope?.error ?? null;
   if (!(state.installed && state.dll_found && state.launcher_installed)) {
-    return <StatusCard state={state} notice={notice} onSetup={onSetup} />;
+    return (
+      <>
+        <ThemeStyle />
+        <StatusCard state={state} notice={notice} onSetup={onSetup} />
+      </>
+    );
   }
   const banner = restartFor !== null && restartFor === appId && gameName ? restartBanner(gameName) : null;
 
   return (
     <InfoContext.Provider value={showInfo}>
+      <ThemeStyle />
       <PanelSection>
         {infoToggle}
         {notice && <Notice text={notice} />}
@@ -239,6 +274,15 @@ export function Panel() {
         {scope && (
           <NowPlaying
             scope={scope}
+            running={isRunning}
+            picker={
+              <ProfilePicker
+                profiles={profiles}
+                selected={picked?.app_id ?? null}
+                locked={isRunning ? gameName : null}
+                onSelect={(entry) => setPicked(entry.app_id === null ? null : entry)}
+              />
+            }
             onMultiplier={onMultiplier}
             onChange={onChange}
             onSaveForGame={onSaveForGame}
@@ -261,7 +305,9 @@ export function Panel() {
             onReset={onReset}
             onRemoved={async () => {
               needsRestart();
+              setPicked(null);
               await loadScope();
+              await loadProfiles();
               await refresh();
             }}
           />

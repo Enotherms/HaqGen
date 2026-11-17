@@ -77,3 +77,11 @@ export interface ScopeResult {
 export const getScope = callable<[number | null, string | null], ScopeResult>("get_scope");
 export const saveDefault = callable<[Settings], Result>("save_default");
 export const setEnabled = callable<[number | null, boolean], Result>("set_enabled");
+
+export interface ProfileEntry {
+  app_id: number | null;
+  game: string | null;
+  label: string;
+}
+
+export const listProfiles = callable<[], ProfileEntry[]>("list_profiles");

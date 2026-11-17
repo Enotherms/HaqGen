@@ -109,6 +109,7 @@ export function positionToMultiplier(position: number): number | null {
 export interface ScopeInfo {
   scope: "default" | "game";
   game: string | null;
+  running: boolean;
 }
 
 export function scopeTitle(s: ScopeInfo): string {
@@ -116,6 +117,22 @@ export function scopeTitle(s: ScopeInfo): string {
 }
 
 export function scopeLine(s: ScopeInfo): string {
-  if (!s.game) return "No game running · used by games without their own profile";
+  if (!s.game) return "Used by games without their own profile";
+  if (!s.running) return "Saved profile · applies when the game starts";
   return s.scope === "game" ? "Running · has its own profile" : "Running · uses the Default profile";
+}
+
+export interface EditTarget {
+  appId: number | null;
+  game: string | null;
+  locked: boolean;
+}
+
+export function editTarget(
+  running: { appId: number; name: string } | null,
+  picked: { app_id: number | null; game: string | null } | null
+): EditTarget {
+  if (running) return { appId: running.appId, game: running.name, locked: true };
+  if (picked && picked.app_id !== null) return { appId: picked.app_id, game: picked.game, locked: false };
+  return { appId: null, game: null, locked: false };
 }

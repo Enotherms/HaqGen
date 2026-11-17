@@ -132,13 +132,28 @@ import { scopeLine, scopeTitle } from "./logic";
 
 describe("scope text", () => {
   it("titles the profile being edited", () => {
-    expect(scopeTitle({ scope: "default", game: null })).toBe("Default profile");
-    expect(scopeTitle({ scope: "default", game: "Elden Ring" })).toBe("Elden Ring");
-    expect(scopeTitle({ scope: "game", game: "Elden Ring" })).toBe("Elden Ring");
+    expect(scopeTitle({ scope: "default", game: null, running: false })).toBe("Default profile");
+    expect(scopeTitle({ scope: "game", game: "Elden Ring", running: false })).toBe("Elden Ring");
   });
   it("explains which profile applies", () => {
-    expect(scopeLine({ scope: "default", game: null })).toBe("No game running · used by games without their own profile");
-    expect(scopeLine({ scope: "default", game: "Elden Ring" })).toBe("Running · uses the Default profile");
-    expect(scopeLine({ scope: "game", game: "Elden Ring" })).toBe("Running · has its own profile");
+    expect(scopeLine({ scope: "default", game: null, running: false })).toBe("Used by games without their own profile");
+    expect(scopeLine({ scope: "default", game: "Elden Ring", running: true })).toBe("Running · uses the Default profile");
+    expect(scopeLine({ scope: "game", game: "Elden Ring", running: true })).toBe("Running · has its own profile");
+    expect(scopeLine({ scope: "game", game: "Elden Ring", running: false })).toBe("Saved profile · applies when the game starts");
+  });
+});
+
+import { editTarget } from "./logic";
+
+describe("editTarget", () => {
+  it("follows the running game", () => {
+    expect(editTarget({ appId: 5, name: "Run" }, { app_id: 9, game: "Other" })).toEqual({ appId: 5, game: "Run", locked: true });
+  });
+  it("uses the picked profile when no game runs", () => {
+    expect(editTarget(null, { app_id: 9, game: "Other" })).toEqual({ appId: 9, game: "Other", locked: false });
+  });
+  it("defaults to the Default profile", () => {
+    expect(editTarget(null, null)).toEqual({ appId: null, game: null, locked: false });
+    expect(editTarget(null, { app_id: null, game: null })).toEqual({ appId: null, game: null, locked: false });
   });
 });

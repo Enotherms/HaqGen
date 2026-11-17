@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import dataclasses
 import os
+import re
 import ssl
 import urllib.request
 from collections import deque
@@ -417,3 +418,20 @@ def set_enabled(paths: Paths, app_id: int | None, enabled: bool) -> dict:
     except OSError as exc:
         return _fail(str(exc))
     return {"ok": True}
+
+
+_GAME_PROFILE = re.compile(r"^HaqGen (\d+) (.+)$")
+
+
+def list_profiles(paths: Paths) -> list[dict]:
+    entries = [{"app_id": None, "game": None, "label": "Default"}]
+    try:
+        cfg = load_config(paths.config_path)
+    except ConfigError:
+        return entries
+    games = []
+    for p in cfg.profiles:
+        match = _GAME_PROFILE.match(p.name)
+        if match:
+            games.append({"app_id": int(match.group(1)), "game": match.group(2), "label": match.group(2)})
+    return entries + sorted(games, key=lambda g: g["label"].lower())

@@ -57,6 +57,9 @@ class Plugin:
     async def delete_profile(self, app_id: int, game_name: str) -> dict:
         return await asyncio.to_thread(service.delete_profile, _paths(), app_id, game_name)
 
+    async def list_profiles(self) -> list:
+        return await asyncio.to_thread(service.list_profiles, _paths())
+
     async def launch_option(self) -> str:
         return service.launch_option()
 

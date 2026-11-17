@@ -24,14 +24,10 @@ export function PrimaryButton(props: { children: ReactNode; onClick: () => void;
     <PanelSectionRow>
       <div style={rowGap}>
       <DialogButton
+        className="haqgen-primary"
         disabled={props.disabled}
         onClick={props.onClick}
-        style={{
-          ...buttonBase,
-          background: "linear-gradient(135deg, rgba(227,164,74,0.32), rgba(227,164,74,0.14))",
-          border: `1px solid ${ACCENT}88`,
-          opacity: props.disabled ? 0.5 : 1,
-        }}
+        style={{ ...buttonBase, opacity: props.disabled ? 0.5 : 1 }}
       >
         {props.children}
       </DialogButton>
@@ -57,14 +53,10 @@ export function DangerButton(props: { children: ReactNode; onClick: () => void; 
     <PanelSectionRow>
       <div style={rowGap}>
       <DialogButton
+        className="haqgen-danger"
         disabled={props.disabled}
         onClick={props.onClick}
-        style={{
-          ...buttonBase,
-          background: "rgba(208,80,90,0.16)",
-          border: `1px solid ${DANGER}99`,
-          opacity: props.disabled ? 0.5 : 1,
-        }}
+        style={{ ...buttonBase, opacity: props.disabled ? 0.5 : 1 }}
       >
         {props.children}
       </DialogButton>
@@ -118,18 +110,9 @@ export function SegmentedChoice<T extends string>({
             return (
               <DialogButton
                 key={o.value}
+                className={active ? "haqgen-seg haqgen-seg-active" : "haqgen-seg"}
                 onClick={() => onChange(o.value)}
-                style={{
-                  flex: 1,
-                  minWidth: 0,
-                  padding: "0 4px",
-                  height: 36,
-                  minHeight: 36,
-                  fontSize: 13,
-                  borderRadius: 4,
-                  background: active ? "rgba(227,164,74,0.38)" : undefined,
-                  border: active ? `1px solid ${ACCENT}` : "1px solid transparent",
-                }}
+                style={{ flex: 1, minWidth: 0, padding: "0 4px", height: 36, minHeight: 36, fontSize: 13, borderRadius: 4 }}
               >
                 {o.label}
               </DialogButton>
@@ -140,4 +123,18 @@ export function SegmentedChoice<T extends string>({
       </div>
     </PanelSectionRow>
   );
+}
+
+const CSS = `
+.haqgen-primary { background: linear-gradient(135deg, #8a5a17, #5e3d10) !important; color: #ffffff !important; border: 1px solid ${ACCENT}aa !important; }
+.haqgen-primary.gpfocus, .haqgen-primary:hover { background: ${ACCENT} !important; color: #1b1306 !important; }
+.haqgen-danger { background: #4a1a1f !important; color: #ffffff !important; border: 1px solid ${DANGER}aa !important; }
+.haqgen-danger.gpfocus, .haqgen-danger:hover { background: ${DANGER} !important; color: #ffffff !important; }
+.haqgen-seg { border: 1px solid transparent !important; }
+.haqgen-seg-active { background: #6b4713 !important; color: #ffffff !important; border-color: ${ACCENT} !important; }
+.haqgen-seg-active.gpfocus { background: ${ACCENT} !important; color: #1b1306 !important; }
+`;
+
+export function ThemeStyle() {
+  return <style>{CSS}</style>;
 }
