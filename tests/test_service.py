@@ -488,3 +488,12 @@ def test_state_upgrades_config_missing_version(paths, tmp_path):
     import tomllib
     parsed = tomllib.loads(paths.config_path.read_text(encoding="utf-8"))
     assert parsed["version"] == 2 and parsed["global"]["log_level"] == "debug"
+
+
+def test_state_removes_keys_lsfg_vk_rejects(paths, tmp_path):
+    dll = add_dll(tmp_path)
+    paths.config_path.parent.mkdir(parents=True)
+    paths.config_path.write_text(f'version = 2\n[global]\ndll = "{dll}"\ncurrent_profile = "old"\n', encoding="utf-8")
+    service.get_state(paths)
+    import tomllib
+    assert "current_profile" not in tomllib.loads(paths.config_path.read_text(encoding="utf-8"))["global"]

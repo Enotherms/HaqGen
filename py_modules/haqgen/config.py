@@ -143,8 +143,6 @@ def dump_config(cfg: Config) -> str:
         lines.append(f"log_level = {_value(cfg.log_level)}")
     if cfg.log_file is not None:
         lines.append(f"log_file = {_value(cfg.log_file)}")
-    for k, v in cfg.extra_global.items():
-        lines.append(f"{_key(k)} = {_value(v)}")
     for p in cfg.profiles:
         lines += [
             "",
@@ -158,8 +156,6 @@ def dump_config(cfg: Config) -> str:
             f"override_present_mode = {_value(p.override_present_mode)}",
             f"preserve_swapchain_image_count = {_value(p.preserve_swapchain_image_count)}",
         ]
-        for k, v in p.extra.items():
-            lines.append(f"{_key(k)} = {_value(v)}")
     return "\n".join(lines) + "\n"
 
 
@@ -191,4 +187,14 @@ def needs_upgrade(path: Path) -> bool:
         data = tomllib.loads(Path(path).read_text(encoding="utf-8"))
     except (OSError, tomllib.TOMLDecodeError, UnicodeDecodeError):
         return False
-    return data.get("version") != CONFIG_VERSION
+    if data.get("version") != CONFIG_VERSION:
+        return True
+    if set(data) - {"version", "global", "profile"}:
+        return True
+    g = data.get("global", {})
+    if isinstance(g, dict) and set(g) - _GLOBAL_KEYS:
+        return True
+    for p in data.get("profile", []) if isinstance(data.get("profile"), list) else []:
+        if isinstance(p, dict) and set(p) - _PROFILE_KEYS:
+            return True
+    return False

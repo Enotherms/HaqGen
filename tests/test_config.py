@@ -62,18 +62,19 @@ def test_escapes_quotes_and_unicode_in_names():
     assert parsed["profile"][0]["active_in"] == [name]
 
 
-def test_unknown_keys_preserved(tmp_path):
+def test_unknown_keys_are_dropped_because_lsfg_vk_rejects_them(tmp_path):
     path = tmp_path / "conf.toml"
     path.write_text(
-        '[global]\nfuture_global = "x"\n\n'
+        '[global]\ncurrent_profile = "x"\nlog_level = "debug"\n\n'
         '[[profile]]\nname = "A"\nactive_in = ["a"]\nfuture_key = 7\n',
         encoding="utf-8",
     )
-    cfg = load_config(path)
-    save_config(path, cfg)
+    save_config(path, load_config(path))
     parsed = tomllib.loads(path.read_text(encoding="utf-8"))
-    assert parsed["global"]["future_global"] == "x"
-    assert parsed["profile"][0]["future_key"] == 7
+    assert "current_profile" not in parsed["global"]
+    assert parsed["global"]["log_level"] == "debug"
+    assert "future_key" not in parsed["profile"][0]
+    assert parsed["profile"][0]["name"] == "A"
 
 
 def test_user_profiles_untouched(tmp_path):
@@ -172,4 +173,16 @@ def test_needs_upgrade(tmp_path):
     p.write_text("version = 2\n[global]\n", encoding="utf-8")
     assert needs_upgrade(p) is False
     p.write_text("[[broken", encoding="utf-8")
+    assert needs_upgrade(p) is False
+
+
+def test_needs_upgrade_when_unknown_keys_present(tmp_path):
+    from haqgen.config import needs_upgrade
+
+    p = tmp_path / "conf.toml"
+    p.write_text('version = 2\n[global]\ncurrent_profile = "x"\n', encoding="utf-8")
+    assert needs_upgrade(p) is True
+    p.write_text('version = 2\n[[profile]]\nname = "A"\nfuture = 1\n', encoding="utf-8")
+    assert needs_upgrade(p) is True
+    p.write_text('version = 2\n[global]\nlog_level = "debug"\n\n[[profile]]\nname = "A"\nmultiplier = 2\n', encoding="utf-8")
     assert needs_upgrade(p) is False
