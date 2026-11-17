@@ -131,8 +131,11 @@ def _value(v: Any) -> str:
     raise ConfigError(f"Cannot write value of type {type(v).__name__}")
 
 
+CONFIG_VERSION = 2
+
+
 def dump_config(cfg: Config) -> str:
-    lines: list[str] = ["[global]"]
+    lines: list[str] = [f"version = {CONFIG_VERSION}", "", "[global]"]
     if cfg.dll is not None:
         lines.append(f"dll = {_value(cfg.dll)}")
     lines.append(f"allow_fp16 = {_value(cfg.allow_fp16)}")

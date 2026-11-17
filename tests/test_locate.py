@@ -3,7 +3,7 @@ from pathlib import Path
 from haqgen.locate import default_steam_roots, find_dll, steam_library_paths
 
 
-def make_dll(lib: Path, name: str = "Lossless.dll") -> Path:
+def make_dll(lib: Path, name: str = "lsfg-vk.dll") -> Path:
     d = lib / "steamapps" / "common" / "Lossless Scaling"
     d.mkdir(parents=True)
     f = d / name
@@ -50,18 +50,31 @@ def test_missing_vdf_falls_back_to_root(tmp_path):
     assert steam_library_paths(tmp_path) == [tmp_path]
 
 
-def test_prefers_lsfg_dll_name_then_lossless_dll(tmp_path):
+def test_only_lsfg_vk_dll_counts(tmp_path):
     d = tmp_path / "steamapps" / "common" / "Lossless Scaling"
     d.mkdir(parents=True)
     (d / "Lossless.dll").write_bytes(b"MZ")
+    assert find_dll([tmp_path]) is None
     (d / "lsfg-vk.dll").write_bytes(b"MZ")
     assert find_dll([tmp_path]).name == "lsfg-vk.dll"
+
+
+def test_wrong_branch_detected_when_only_lossless_dll(tmp_path):
+    from haqgen.locate import lossless_on_wrong_branch
+
+    assert lossless_on_wrong_branch([tmp_path]) is False
+    d = tmp_path / "steamapps" / "common" / "Lossless Scaling"
+    d.mkdir(parents=True)
+    (d / "Lossless.dll").write_bytes(b"MZ")
+    assert lossless_on_wrong_branch([tmp_path]) is True
+    (d / "lsfg-vk.dll").write_bytes(b"MZ")
+    assert lossless_on_wrong_branch([tmp_path]) is False
 
 
 def test_finds_dll_with_odd_case_folder(tmp_path):
     d = tmp_path / "steamapps" / "common" / "Lossless Scaling"
     d.mkdir(parents=True)
-    (d / "Lossless.dll").write_bytes(b"MZ")
+    (d / "lsfg-vk.dll").write_bytes(b"MZ")
     assert find_dll([tmp_path]) is not None
 
 

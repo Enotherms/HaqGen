@@ -58,7 +58,7 @@ def test_setup_failure_is_logged_with_detail(plugin_module, tmp_path, caplog, mo
     caplog.set_level(logging.ERROR, logger="haqgen-test")
     dll_dir = tmp_path / "steam" / "steamapps" / "common" / "Lossless Scaling"
     dll_dir.mkdir(parents=True)
-    (dll_dir / "Lossless.dll").write_bytes(b"MZ")
+    (dll_dir / "lsfg-vk.dll").write_bytes(b"MZ")
 
     def boom(url, dest):
         raise OSError("no network")

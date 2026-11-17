@@ -144,3 +144,19 @@ def test_wrong_value_type_raises_config_error(tmp_path):
     path.write_text('[[profile]]\nname = "A"\nmultiplier = "lots"\n', encoding="utf-8")
     with pytest.raises(ConfigError):
         load_config(path)
+
+
+def test_dump_starts_with_config_version_2():
+    text = dump_config(Config())
+    assert text.splitlines()[0] == "version = 2"
+    assert tomllib.loads(text)["version"] == 2
+
+
+def test_saved_config_keeps_version_2_and_log_settings(tmp_path):
+    path = tmp_path / "conf.toml"
+    path.write_text('[global]\nlog_level = "debug"\nlog_file = "/home/deck/lsfg-vk.log"\n', encoding="utf-8")
+    save_config(path, load_config(path))
+    parsed = tomllib.loads(path.read_text(encoding="utf-8"))
+    assert parsed["version"] == 2
+    assert parsed["global"]["log_level"] == "debug"
+    assert parsed["global"]["log_file"] == "/home/deck/lsfg-vk.log"

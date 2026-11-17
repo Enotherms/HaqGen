@@ -53,7 +53,11 @@ export function StatusCard({
             overflow: "hidden",
           }}
         >
-          <Row first state={state.dll_found ? "ready" : "missing"} text={state.dll_found ? S.dllFound : S.dllMissing} />
+          <Row
+            first
+            state={state.dll_found ? "ready" : state.wrong_branch ? "warning" : "missing"}
+            text={state.dll_found ? S.dllFound : state.wrong_branch ? S.dllWrongBranch : S.dllMissing}
+          />
           <Row state={state.installed ? "ready" : "missing"} text={state.installed ? S.lsfgFound : S.lsfgMissing} />
           <Row
             state={state.launcher_installed ? "ready" : "missing"}

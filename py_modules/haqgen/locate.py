@@ -3,7 +3,8 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-DLL_NAMES = ("lsfg-vk.dll", "Lossless.dll")
+DLL_NAMES = ("lsfg-vk.dll",)
+LEGACY_DLL = "Lossless.dll"
 _APP_DIR = Path("steamapps") / "common" / "Lossless Scaling"
 
 
@@ -85,3 +86,14 @@ def game_install_dir(steam_roots: list[Path], app_id: int) -> Path | None:
             if match:
                 return library / "steamapps" / "common" / _unescape(match.group(1))
     return None
+
+
+def lossless_on_wrong_branch(steam_roots: list[Path]) -> bool:
+    """Lossless Scaling is installed but lacks lsfg-vk.dll (not on the lsfg-vk beta branch)."""
+    if find_dll(steam_roots) is not None:
+        return False
+    for root in steam_roots:
+        for library in steam_library_paths(root):
+            if (library / _APP_DIR / LEGACY_DLL).is_file():
+                return True
+    return False

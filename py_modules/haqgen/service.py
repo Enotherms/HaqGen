@@ -13,7 +13,7 @@ from typing import Callable
 from .config import Config, ConfigError, Profile, load_config, save_config
 from .install import allowed_roots, install_lsfg_vk, lsfg_present
 from .lsfg_cli import healthcheck, validate_config
-from .locate import find_dll, game_install_dir, list_installed_games
+from .locate import find_dll, game_install_dir, list_installed_games, lossless_on_wrong_branch
 from .procs import find_game_exe
 from .settings import load_settings, save_settings
 from .launcher import DEFAULT_PROFILE, install_launcher, launcher_path
@@ -171,12 +171,17 @@ def get_state(paths: Paths) -> dict:
         "dll_path": str(dll) if dll else None,
         "profiles": [],
         "launcher_installed": launcher_path(paths.local_dir).exists(),
+        "wrong_branch": dll is None and lossless_on_wrong_branch(paths.steam_roots),
         "error": None,
     }
     try:
         cfg = load_config(paths.config_path)
         state["profiles"] = [p.name for p in cfg.profiles if _is_haqgen(p)]
+        if dll is not None and paths.config_path.exists() and cfg.dll != str(dll):
+            save_config(paths.config_path, dataclasses.replace(cfg, dll=str(dll)))
     except ConfigError as exc:
+        state["error"] = str(exc)
+    except OSError as exc:
         state["error"] = str(exc)
     return state
 

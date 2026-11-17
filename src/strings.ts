@@ -6,6 +6,7 @@ export const S = {
   setupTitle: "Set up HaqGen",
   dllFound: "Lossless Scaling found",
   dllMissing: "Lossless Scaling not found. Install it from Steam.",
+  dllWrongBranch: "Switch Lossless Scaling to the lsfg-vk beta branch: Library › Lossless Scaling › Properties › Betas › lsfg-vk.",
   lsfgFound: "lsfg-vk installed",
   lsfgMissing: "lsfg-vk not installed",
   launcherFound: "HaqGen launcher installed",

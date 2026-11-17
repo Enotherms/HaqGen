@@ -6,6 +6,7 @@ export interface State {
   dll_path: string | null;
   profiles: string[];
   launcher_installed: boolean;
+  wrong_branch: boolean;
   error: string | null;
 }
 

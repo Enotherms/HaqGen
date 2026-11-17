@@ -26,8 +26,8 @@ def paths(tmp_path):
 def add_dll(tmp_path):
     d = tmp_path / "steam" / "steamapps" / "common" / "Lossless Scaling"
     d.mkdir(parents=True)
-    (d / "Lossless.dll").write_bytes(b"MZ")
-    return d / "Lossless.dll"
+    (d / "lsfg-vk.dll").write_bytes(b"MZ")
+    return d / "lsfg-vk.dll"
 
 
 LAYER = "share/vulkan/implicit_layer.d/VkLayer_LSFGVK_frame_generation.json"
@@ -453,3 +453,28 @@ def test_list_profiles_round_trips_into_get_scope(paths):
     service.save_profile(paths, 9, "Odd  Name: Ed.", {"multiplier": 3})
     entry = [p for p in service.list_profiles(paths) if p["app_id"] == 9][0]
     assert service.get_scope(paths, entry["app_id"], entry["game"])["profile"]["multiplier"] == 3
+
+
+def test_state_reports_wrong_branch(paths, tmp_path):
+    d = tmp_path / "steam" / "steamapps" / "common" / "Lossless Scaling"
+    d.mkdir(parents=True)
+    (d / "Lossless.dll").write_bytes(b"MZ")
+    s = service.get_state(paths)
+    assert s["dll_found"] is False and s["wrong_branch"] is True
+
+
+def test_state_updates_stale_dll_path_and_writes_version(paths, tmp_path):
+    dll = add_dll(tmp_path)
+    paths.config_path.parent.mkdir(parents=True)
+    paths.config_path.write_text('[global]\ndll = "/old/Lossless.dll"\n', encoding="utf-8")
+    service.get_state(paths)
+    import tomllib
+    parsed = tomllib.loads(paths.config_path.read_text(encoding="utf-8"))
+    assert parsed["global"]["dll"] == str(dll)
+    assert parsed["version"] == 2
+
+
+def test_state_does_not_create_config_when_none_exists(paths, tmp_path):
+    add_dll(tmp_path)
+    service.get_state(paths)
+    assert not paths.config_path.exists()
