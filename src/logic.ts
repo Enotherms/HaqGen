@@ -91,3 +91,32 @@ export function parseStoredAppId(raw: string | null): number | null {
   const n = Number(raw);
   return n > 0 ? n : null;
 }
+
+export const RESTART = {
+  instant: "Applies instantly",
+  game: "Restart the game to apply",
+  none: "No restart needed",
+  setup: "Restart running games to apply",
+  remove: "Restart running games to fully stop",
+} as const;
+
+export const PRESET_ORDER = ["battery", "balanced", "quality"] as const;
+
+export function frameLimitTip(multiplier: number, refreshHz = 90): string {
+  const limit = Math.floor(refreshHz / multiplier);
+  return `Tip: set Steam's frame limit to ${limit} for ${multiplier}x on your ${refreshHz} Hz screen.`;
+}
+
+export function summaryLine(p: {
+  multiplier: number;
+  preset: string | null;
+  performance_mode: boolean;
+}): string {
+  const preset = p.preset ? PRESET_LABELS[p.preset] ?? p.preset : "Custom";
+  const model = p.performance_mode ? "Performance model" : "Standard model";
+  return `${p.multiplier}x · ${preset} · ${model}`;
+}
+
+export function restartBanner(gameName: string): string {
+  return `Restart ${gameName} to apply your changes.`;
+}

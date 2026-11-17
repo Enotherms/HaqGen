@@ -87,3 +87,51 @@ describe("parseStoredAppId", () => {
     expect(parseStoredAppId(null)).toBeNull();
   });
 });
+
+import { frameLimitTip, PRESET_ORDER, RESTART, restartBanner, summaryLine } from "./logic";
+
+describe("RESTART notes", () => {
+  it("uses the fixed wording", () => {
+    expect(RESTART).toEqual({
+      instant: "Applies instantly",
+      game: "Restart the game to apply",
+      none: "No restart needed",
+      setup: "Restart running games to apply",
+      remove: "Restart running games to fully stop",
+    });
+    expect(Object.values(RESTART).join(" ")).not.toMatch(/device/i);
+  });
+});
+
+describe("frameLimitTip", () => {
+  it("computes the limit for 90 Hz", () => {
+    expect(frameLimitTip(2)).toBe("Tip: set Steam's frame limit to 45 for 2x on your 90 Hz screen.");
+    expect(frameLimitTip(3)).toContain("limit to 30 for 3x");
+    expect(frameLimitTip(4)).toContain("limit to 22 for 4x");
+  });
+  it("uses another refresh rate when given", () => {
+    expect(frameLimitTip(2, 60)).toContain("limit to 30 for 2x on your 60 Hz screen");
+  });
+});
+
+describe("summaryLine", () => {
+  it("names the preset and model", () => {
+    expect(summaryLine({ multiplier: 2, preset: "balanced", performance_mode: false })).toBe(
+      "2x · Balanced · Standard model"
+    );
+  });
+  it("says Custom when no preset matches", () => {
+    expect(summaryLine({ multiplier: 3, preset: null, performance_mode: true })).toBe(
+      "3x · Custom · Performance model"
+    );
+  });
+});
+
+describe("restartBanner / PRESET_ORDER", () => {
+  it("formats the banner", () => {
+    expect(restartBanner("Elden Ring")).toBe("Restart Elden Ring to apply your changes.");
+  });
+  it("orders presets weakest to strongest", () => {
+    expect(PRESET_ORDER).toEqual(["battery", "balanced", "quality"]);
+  });
+});
