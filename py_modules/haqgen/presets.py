@@ -6,9 +6,9 @@ import re
 from .config import Config, Profile
 
 PRESETS: dict[str, dict] = {
-    "battery": {"multiplier": 2, "flow_scale": 0.5, "performance_mode": True},
-    "balanced": {"multiplier": 2, "flow_scale": 0.75, "performance_mode": False},
-    "quality": {"multiplier": 2, "flow_scale": 1.0, "performance_mode": False},
+    "battery": {"flow_scale": 0.5, "performance_mode": True},
+    "balanced": {"flow_scale": 0.75, "performance_mode": False},
+    "quality": {"flow_scale": 1.0, "performance_mode": False},
 }
 
 

@@ -307,7 +307,7 @@ def test_profile_dict_reports_matching_preset(paths):
 
 
 def test_profile_dict_custom_is_none(paths):
-    service.save_profile(paths, 7, "G", {"preset": "quality", "multiplier": 3})
+    service.save_profile(paths, 7, "G", {"preset": "quality", "flow_scale": 0.4})
     assert service.get_profile(paths, 7, "G")["preset"] is None
 
 
@@ -335,3 +335,10 @@ def test_health_check_failure_summary(paths, tmp_path):
     r = service.health_check(paths)
     assert r["ok"] is False and "Unknown key" in r["details"]
     assert r["summary"].startswith("lsfg-vk found a problem")
+
+
+def test_preset_keeps_multiplier_and_still_matches(paths):
+    service.save_profile(paths, 7, "G", {"multiplier": 3})
+    service.save_profile(paths, 7, "G", {"preset": "quality"})
+    r = service.get_profile(paths, 7, "G")
+    assert (r["multiplier"], r["flow_scale"], r["preset"]) == (3, 1.0, "quality")

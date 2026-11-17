@@ -12,16 +12,16 @@ from haqgen.presets import (
 
 
 def test_presets_values():
-    assert PRESETS["battery"] == {"multiplier": 2, "flow_scale": 0.5, "performance_mode": True}
-    assert PRESETS["balanced"] == {"multiplier": 2, "flow_scale": 0.75, "performance_mode": False}
-    assert PRESETS["quality"] == {"multiplier": 2, "flow_scale": 1.0, "performance_mode": False}
+    assert PRESETS["battery"] == {"flow_scale": 0.5, "performance_mode": True}
+    assert PRESETS["balanced"] == {"flow_scale": 0.75, "performance_mode": False}
+    assert PRESETS["quality"] == {"flow_scale": 1.0, "performance_mode": False}
     assert set(PRESETS) == {"battery", "balanced", "quality"}
 
 
 def test_apply_preset_returns_new_profile():
     base = Profile(name="X", active_in=["x.exe"], multiplier=4)
     out = apply_preset(base, "battery")
-    assert (out.multiplier, out.flow_scale, out.performance_mode) == (2, 0.5, True)
+    assert (out.multiplier, out.flow_scale, out.performance_mode) == (4, 0.5, True)
     assert out.active_in == ["x.exe"]
     assert base.multiplier == 4
 
