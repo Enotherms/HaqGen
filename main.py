@@ -6,7 +6,8 @@ import decky
 from haqgen import service
 from haqgen.locate import default_steam_roots
 
-LSFG_VK_URL = None
+LSFG_VK_URL = "https://builds.lsfg-vk.dev/lsfg-vk-2.0.0.tar.xz"
+LSFG_VK_SHA256 = "08bdbdf373a111022df87dac7aa87e3b564bb841f961552e3ca85fea12b5aa74"
 
 
 def _paths() -> service.Paths:
@@ -17,6 +18,7 @@ def _paths() -> service.Paths:
         manifest_path=runtime / "manifest.json",
         data_dir=runtime,
         steam_roots=default_steam_roots(home),
+        local_dir=home / ".local",
         log_path=Path(decky.DECKY_PLUGIN_LOG),
     )
 
@@ -33,7 +35,7 @@ class Plugin:
 
     async def setup(self) -> dict:
         return await asyncio.to_thread(
-            service.setup, _paths(), service.download, LSFG_VK_URL
+            service.setup, _paths(), service.download, LSFG_VK_URL, LSFG_VK_SHA256
         )
 
     async def get_profile(self, app_id: int, game_name: str) -> dict:

@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Callable
 
 from .config import Config, ConfigError, Profile, load_config, save_config
-from .install import allowed_roots, install_lsfg_vk
+from .install import allowed_roots, install_lsfg_vk, lsfg_present
 from .lsfg_cli import validate_config
 from .locate import find_dll
 from .manifest import execute_removal, load_manifest, plan_removal, replace_manifest
@@ -31,11 +31,12 @@ class Paths:
     manifest_path: Path
     data_dir: Path
     steam_roots: list[Path]
+    local_dir: Path
     log_path: Path | None = None
     cli_path: Path | None = None
 
     def cli(self) -> Path:
-        return self.cli_path or self.data_dir / "lsfg-vk" / "bin" / "lsfg-vk-cli"
+        return self.cli_path or self.local_dir / "bin" / "lsfg-vk-cli"
 
 
 def download(url: str, dest: Path) -> None:
@@ -53,7 +54,7 @@ def _fail(error: str) -> dict:
 
 
 def _installed(paths: Paths) -> bool:
-    return any(os.path.lexists(p) for p in load_manifest(paths.manifest_path).paths)
+    return lsfg_present(paths.local_dir)
 
 
 def _profile_dict(p: Profile, exists: bool) -> dict:
@@ -88,14 +89,21 @@ def get_state(paths: Paths) -> dict:
     return state
 
 
-def setup(paths: Paths, fetch: Callable | None = None, url: str | None = None) -> dict:
+def setup(
+    paths: Paths,
+    fetch: Callable | None = None,
+    url: str | None = None,
+    sha256: str | None = None,
+) -> dict:
     dll = find_dll(paths.steam_roots)
     if dll is None:
         return _fail("dll_not_found")
     if not _installed(paths):
         if not url or fetch is None:
             return _fail("install_url_unknown")
-        result = install_lsfg_vk(paths.data_dir, paths.manifest_path, fetch, url)
+        result = install_lsfg_vk(
+            paths.local_dir, paths.manifest_path, fetch, url, sha256=sha256, work_dir=paths.data_dir
+        )
         if not result.ok:
             return {"ok": False, "error": "install_failed", "detail": result.error}
     try:
@@ -160,7 +168,7 @@ def _haqgen_profile_names(paths: Paths) -> list[str]:
 
 
 def removal_preview(paths: Paths) -> dict:
-    plan = plan_removal(load_manifest(paths.manifest_path), allowed_roots(paths.data_dir))
+    plan = plan_removal(load_manifest(paths.manifest_path), allowed_roots(paths.data_dir, paths.local_dir))
     return {
         "delete": [str(p) for p in plan.to_delete],
         "missing": [str(p) for p in plan.missing],
@@ -180,7 +188,7 @@ def remove_all(paths: Paths, confirmed: bool) -> dict:
     if not confirmed:
         return _fail("not_confirmed")
     manifest = load_manifest(paths.manifest_path)
-    plan = plan_removal(manifest, allowed_roots(paths.data_dir))
+    plan = plan_removal(manifest, allowed_roots(paths.data_dir, paths.local_dir))
     report = execute_removal(plan)
     keep = [p for p, _ in plan.refused] + [str(p) for p, _ in report.failed]
     replace_manifest(paths.manifest_path, keep)

@@ -1,9 +1,16 @@
+import hashlib
 import io
 import tarfile
 from pathlib import Path
 
-from haqgen.install import extract_archive, install_lsfg_vk
+from haqgen.install import extract_archive, install_lsfg_vk, lsfg_present
 from haqgen.manifest import load_manifest
+
+FILES = {
+    "./bin/lsfg-vk-cli": b"cli",
+    "./lib/liblsfg-vk-layer.so": b"so",
+    "./share/vulkan/implicit_layer.d/VkLayer_LSFGVK_frame_generation.json": b"{}",
+}
 
 
 def make_targz(dest: Path, files: dict[str, bytes]) -> None:
@@ -14,55 +21,62 @@ def make_targz(dest: Path, files: dict[str, bytes]) -> None:
             tar.addfile(info, io.BytesIO(data))
 
 
-def fake_fetch_factory(files):
+def fetcher(files):
     def fetch(url: str, dest: Path) -> None:
         make_targz(dest, files)
 
     return fetch
 
 
-def test_install_records_every_created_path(tmp_path):
-    dest = tmp_path / "data"
+def test_install_records_created_files(tmp_path):
+    local = tmp_path / "local"
     mp = tmp_path / "manifest.json"
-    fetch = fake_fetch_factory({"lsfg-vk/lib/liblsfg.so": b"x", "lsfg-vk/bin/lsfg-vk-cli": b"y"})
-    res = install_lsfg_vk(dest, mp, fetch, "https://example.invalid/a.tar.gz")
+    res = install_lsfg_vk(local, mp, fetcher(FILES), "u")
     assert res.ok, res.error
-    assert (dest / "lsfg-vk" / "lib" / "liblsfg.so").exists()
-    assert load_manifest(mp).paths == [str(dest / "lsfg-vk")]
+    assert (local / "bin" / "lsfg-vk-cli").read_bytes() == b"cli"
+    assert sorted(load_manifest(mp).paths) == sorted(
+        [
+            str(local / "bin" / "lsfg-vk-cli"),
+            str(local / "lib" / "liblsfg-vk-layer.so"),
+            str(local / "share" / "vulkan" / "implicit_layer.d" / "VkLayer_LSFGVK_frame_generation.json"),
+        ]
+    )
+    assert lsfg_present(local)
 
 
 def test_install_does_not_claim_preexisting_files(tmp_path):
-    dest = tmp_path / "data"
-    dest.mkdir()
-    (dest / "mine.txt").write_text("user")
+    local = tmp_path / "local"
+    (local / "bin").mkdir(parents=True)
+    (local / "bin" / "mine").write_text("user")
     mp = tmp_path / "manifest.json"
-    res = install_lsfg_vk(dest, mp, fake_fetch_factory({"lsfg-vk/a": b"x"}), "u")
+    res = install_lsfg_vk(local, mp, fetcher(FILES), "u")
     assert res.ok
-    assert str(dest / "mine.txt") not in load_manifest(mp).paths
-    assert (dest / "mine.txt").read_text() == "user"
+    assert str(local / "bin" / "mine") not in load_manifest(mp).paths
+    assert (local / "bin" / "mine").read_text() == "user"
 
 
 def test_install_refuses_to_overwrite_existing_file(tmp_path):
-    dest = tmp_path / "data"
-    (dest / "lsfg-vk").mkdir(parents=True)
-    (dest / "lsfg-vk" / "a").write_text("original")
+    local = tmp_path / "local"
+    (local / "bin").mkdir(parents=True)
+    (local / "bin" / "lsfg-vk-cli").write_text("other tool")
     mp = tmp_path / "manifest.json"
-    res = install_lsfg_vk(dest, mp, fake_fetch_factory({"lsfg-vk/a": b"new"}), "u")
+    res = install_lsfg_vk(local, mp, fetcher(FILES), "u")
     assert not res.ok
-    assert (dest / "lsfg-vk" / "a").read_text() == "original"
+    assert (local / "bin" / "lsfg-vk-cli").read_text() == "other tool"
+    assert not (local / "lib").exists()
     assert load_manifest(mp).paths == []
 
 
 def test_install_failure_cleans_partial_files(tmp_path):
-    dest = tmp_path / "data"
+    local = tmp_path / "local"
     mp = tmp_path / "manifest.json"
 
     def bad_fetch(url, path):
         path.write_bytes(b"this is not an archive")
 
-    res = install_lsfg_vk(dest, mp, bad_fetch, "u")
+    res = install_lsfg_vk(local, mp, bad_fetch, "u")
     assert not res.ok and res.error
-    assert not list(dest.rglob("*")) or all(p.name != "lsfg-vk" for p in dest.iterdir())
+    assert not any(p.is_file() for p in local.rglob("*"))
     assert load_manifest(mp).paths == []
 
 
@@ -72,6 +86,47 @@ def test_fetch_exception_returns_error(tmp_path):
 
     res = install_lsfg_vk(tmp_path / "d", tmp_path / "m.json", boom, "u")
     assert not res.ok and "no network" in res.error
+
+
+def test_sha256_mismatch_extracts_nothing(tmp_path):
+    local = tmp_path / "local"
+    res = install_lsfg_vk(local, tmp_path / "m.json", fetcher(FILES), "u", sha256="0" * 64)
+    assert not res.ok and "checksum" in res.error.lower()
+    assert not any(p.is_file() for p in local.rglob("*"))
+
+
+def test_sha256_match_installs(tmp_path):
+    blob = tmp_path / "blob.tar.gz"
+    make_targz(blob, FILES)
+    data = blob.read_bytes()
+
+    def fetch(url, dest):
+        dest.write_bytes(data)
+
+    res = install_lsfg_vk(
+        tmp_path / "local", tmp_path / "m.json", fetch, "u", sha256=hashlib.sha256(data).hexdigest()
+    )
+    assert res.ok, res.error
+
+
+def test_download_goes_to_work_dir_and_is_removed(tmp_path):
+    work = tmp_path / "work"
+    seen = []
+
+    def fetch(url, dest):
+        seen.append(dest)
+        make_targz(dest, FILES)
+
+    res = install_lsfg_vk(tmp_path / "local", tmp_path / "m.json", fetch, "u", work_dir=work)
+    assert res.ok
+    assert seen[0].parent == work
+    assert not list(work.iterdir())
+
+
+def test_lsfg_present_false_when_incomplete(tmp_path):
+    (tmp_path / "bin").mkdir()
+    (tmp_path / "bin" / "lsfg-vk-cli").write_text("x")
+    assert lsfg_present(tmp_path) is False
 
 
 def test_extract_rejects_path_traversal(tmp_path):

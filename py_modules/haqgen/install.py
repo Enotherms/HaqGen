@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import shutil
+import hashlib
 import tarfile
 import zipfile
 from dataclasses import dataclass, field
@@ -8,6 +8,9 @@ from pathlib import Path
 from typing import Callable
 
 from .manifest import record_paths
+
+LAYER_JSON = Path("share/vulkan/implicit_layer.d/VkLayer_LSFGVK_frame_generation.json")
+REQUIRED_FILES = (Path("bin/lsfg-vk-cli"), Path("lib/liblsfg-vk-layer.so"), LAYER_JSON)
 
 
 @dataclass
@@ -17,35 +20,48 @@ class InstallResult:
     created: list[Path] = field(default_factory=list)
 
 
-def allowed_roots(data_dir: Path, extra: list[Path] | None = None) -> list[Path]:
-    return [Path(data_dir), *[Path(p) for p in (extra or [])]]
+def lsfg_present(local_dir: Path) -> bool:
+    return all((Path(local_dir) / rel).is_file() for rel in REQUIRED_FILES)
 
 
-def _names(archive: Path) -> list[str]:
+def allowed_roots(data_dir: Path, local_dir: Path | None = None) -> list[Path]:
+    roots = [Path(data_dir)]
+    if local_dir is not None:
+        local = Path(local_dir)
+        roots += [
+            local / "bin",
+            local / "lib",
+            local / "share" / "vulkan" / "implicit_layer.d",
+            local / "share" / "applications",
+            local / "share" / "icons" / "hicolor" / "256x256" / "apps",
+        ]
+    return roots
+
+
+def _names(archive: Path) -> list[Path]:
     if tarfile.is_tarfile(archive):
         with tarfile.open(archive) as tar:
             for m in tar.getmembers():
                 if m.issym() or m.islnk() or m.isdev():
                     raise ValueError(f"unsafe archive member: {m.name}")
-            return [m.name for m in tar.getmembers() if not m.isdir()]
+            return [Path(m.name) for m in tar.getmembers() if m.isfile()]
     if zipfile.is_zipfile(archive):
         with zipfile.ZipFile(archive) as zf:
-            return [n for n in zf.namelist() if not n.endswith("/")]
-    raise ValueError("not a supported archive (expected .tar.gz or .zip)")
+            return [Path(n) for n in zf.namelist() if not n.endswith("/")]
+    raise ValueError("not a supported archive (expected .tar.gz, .tar.xz or .zip)")
 
 
-def _check_names(names: list[str], dest: Path) -> None:
+def _check_names(names: list[Path], dest: Path) -> None:
     base = dest.resolve()
     for name in names:
         target = (dest / name).resolve()
-        if Path(name).is_absolute() or base not in target.parents:
+        if name.is_absolute() or base not in target.parents:
             raise ValueError(f"archive member escapes destination: {name}")
 
 
 def extract_archive(archive: Path, dest: Path) -> None:
     dest = Path(dest)
-    names = _names(archive)
-    _check_names(names, dest)
+    _check_names(_names(archive), dest)
     if tarfile.is_tarfile(archive):
         with tarfile.open(archive) as tar:
             tar.extractall(dest, filter="data")
@@ -54,19 +70,12 @@ def extract_archive(archive: Path, dest: Path) -> None:
             zf.extractall(dest)
 
 
-def _snapshot(root: Path) -> set[Path]:
-    return set(root.rglob("*")) if root.exists() else set()
-
-
-def _remove(paths: list[Path]) -> None:
-    for p in paths:
-        try:
-            if p.is_symlink() or p.is_file():
-                p.unlink()
-            elif p.is_dir():
-                shutil.rmtree(p)
-        except OSError:
-            pass
+def _sha256(path: Path) -> str:
+    h = hashlib.sha256()
+    with open(path, "rb") as fh:
+        for chunk in iter(lambda: fh.read(1 << 16), b""):
+            h.update(chunk)
+    return h.hexdigest()
 
 
 def install_lsfg_vk(
@@ -74,30 +83,34 @@ def install_lsfg_vk(
     manifest_path: Path,
     fetch: Callable[[str, Path], None],
     url: str,
+    sha256: str | None = None,
+    work_dir: Path | None = None,
 ) -> InstallResult:
     dest_root = Path(dest_root)
-    archive = dest_root / ".haqgen-download.tmp"
+    work = Path(work_dir) if work_dir is not None else dest_root
+    archive = work / ".haqgen-download.tmp"
     created: list[Path] = []
-    before: set[Path] = set()
     try:
         dest_root.mkdir(parents=True, exist_ok=True)
-        before = _snapshot(dest_root)
+        work.mkdir(parents=True, exist_ok=True)
         fetch(url, archive)
+        if sha256 is not None and _sha256(archive) != sha256.lower():
+            raise ValueError("Checksum mismatch: the downloaded file is not the expected release")
         names = _names(archive)
         _check_names(names, dest_root)
         for name in names:
             if (dest_root / name).exists():
                 raise FileExistsError(f"refusing to overwrite existing file: {name}")
+        created = [dest_root / name for name in names]
         extract_archive(archive, dest_root)
         archive.unlink(missing_ok=True)
-        after = _snapshot(dest_root)
-        new = after - before
-        created = sorted(p for p in new if p.parent not in new)
         record_paths(manifest_path, created)
         return InstallResult(True, None, created)
     except Exception as exc:
         archive.unlink(missing_ok=True)
-        after = _snapshot(dest_root)
-        new = after - before
-        _remove(sorted(p for p in new if p.parent not in new))
+        for path in created:
+            try:
+                path.unlink(missing_ok=True)
+            except OSError:
+                pass
         return InstallResult(False, str(exc) or exc.__class__.__name__, [])

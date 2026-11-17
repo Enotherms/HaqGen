@@ -19,6 +19,7 @@ def paths(tmp_path):
         data_dir=tmp_path / "data",
         steam_roots=[tmp_path / "steam"],
         log_path=tmp_path / "plugin.log",
+        local_dir=tmp_path / "local",
     )
 
 
@@ -29,13 +30,20 @@ def add_dll(tmp_path):
     return d / "Lossless.dll"
 
 
+LAYER = "share/vulkan/implicit_layer.d/VkLayer_LSFGVK_frame_generation.json"
+
+
 def fake_fetch(url, dest):
     with tarfile.open(dest, "w:gz") as tar:
-        data = b"#!/bin/sh\nexit 0\n"
-        info = tarfile.TarInfo("lsfg-vk/bin/lsfg-vk-cli")
-        info.size = len(data)
-        info.mode = 0o755
-        tar.addfile(info, io.BytesIO(data))
+        for name, data in {
+            "./bin/lsfg-vk-cli": b"#!/bin/sh\nexit 0\n",
+            "./lib/liblsfg-vk-layer.so": b"so",
+            "./" + LAYER: b"{}",
+        }.items():
+            info = tarfile.TarInfo(name)
+            info.size = len(data)
+            info.mode = 0o755
+            tar.addfile(info, io.BytesIO(data))
 
 
 def test_launch_option_format():
@@ -120,7 +128,7 @@ def test_remove_all_requires_confirmed(paths, tmp_path):
     service.setup(paths, fetch=fake_fetch, url="u")
     r = service.remove_all(paths, confirmed=False)
     assert r["ok"] is False and r["error"] == "not_confirmed"
-    assert (paths.data_dir / "lsfg-vk").exists()
+    assert (paths.local_dir / "bin" / "lsfg-vk-cli").exists()
 
 
 def test_removal_preview_lists_exact_paths(paths, tmp_path):
@@ -128,7 +136,13 @@ def test_removal_preview_lists_exact_paths(paths, tmp_path):
     service.setup(paths, fetch=fake_fetch, url="u")
     service.save_profile(paths, 7, "G", {})
     pv = service.removal_preview(paths)
-    assert pv["delete"] == [str(paths.data_dir / "lsfg-vk")]
+    assert sorted(pv["delete"]) == sorted(
+        [
+            str(paths.local_dir / "bin" / "lsfg-vk-cli"),
+            str(paths.local_dir / "lib" / "liblsfg-vk-layer.so"),
+            str(paths.local_dir / LAYER),
+        ]
+    )
     assert pv["profiles"] == ["HaqGen 7 G"]
     assert pv["refused"] == []
 
@@ -140,7 +154,7 @@ def test_remove_all_deletes_only_haqgen_things(paths, tmp_path):
     service.save_profile(paths, 7, "G", {})
     r = service.remove_all(paths, confirmed=True)
     assert r["ok"] is True
-    assert not (paths.data_dir / "lsfg-vk").exists()
+    assert not (paths.local_dir / "bin" / "lsfg-vk-cli").exists()
     assert dll.exists()
     assert [p.name for p in load_config(paths.config_path).profiles] == ["Mine"]
     assert load_manifest(paths.manifest_path).paths == []
@@ -175,3 +189,24 @@ def test_delete_profile_removes_only_that_game(paths):
 
 def test_delete_profile_missing_is_ok(paths):
     assert service.delete_profile(paths, 7, "G")["ok"] is True
+
+
+def test_setup_uses_existing_lsfg_vk_without_installing_or_claiming(paths, tmp_path):
+    add_dll(tmp_path)
+    for rel in ("bin/lsfg-vk-cli", "lib/liblsfg-vk-layer.so", LAYER):
+        f = paths.local_dir / rel
+        f.parent.mkdir(parents=True, exist_ok=True)
+        f.write_text("other tool")
+    r = service.setup(paths, fetch=None, url=None)
+    assert r["ok"] is True, r
+    assert load_manifest(paths.manifest_path).paths == []
+    assert (paths.local_dir / "bin" / "lsfg-vk-cli").read_text() == "other tool"
+    service.remove_all(paths, confirmed=True)
+    assert (paths.local_dir / "bin" / "lsfg-vk-cli").read_text() == "other tool"
+
+
+def test_setup_rejects_bad_checksum(paths, tmp_path):
+    add_dll(tmp_path)
+    r = service.setup(paths, fetch=fake_fetch, url="u", sha256="0" * 64)
+    assert r["ok"] is False and r["error"] == "install_failed"
+    assert not (paths.local_dir / "bin").exists()
