@@ -74,18 +74,31 @@ export interface GameOption {
   label: string;
 }
 
+export interface GameGroup {
+  label: string;
+  options: GameOption[];
+}
+
 export function buildGameOptions(
   games: GameEntry[],
   running: { appId: number; name: string } | null
-): GameOption[] {
-  const options: GameOption[] = games.map((g) => ({
-    data: g.app_id,
-    label: running && running.appId === g.app_id ? `${g.name} (running)` : g.name,
-  }));
-  if (running && !games.some((g) => g.app_id === running.appId)) {
-    options.unshift({ data: running.appId, label: `${running.name} (running)` });
-  }
-  return options;
+): GameGroup[] {
+  const groups: GameGroup[] = [];
+  if (running) groups.push({ label: "Running", options: [{ data: running.appId, label: running.name }] });
+  const installed = games
+    .filter((g) => !running || g.app_id !== running.appId)
+    .map((g) => ({ data: g.app_id, label: g.name }));
+  if (installed.length > 0) groups.push({ label: `Installed (${installed.length})`, options: installed });
+  return groups;
+}
+
+export function gameName(
+  games: GameEntry[],
+  running: { appId: number; name: string } | null,
+  appId: number
+): string | null {
+  if (running && running.appId === appId) return running.name;
+  return games.find((g) => g.app_id === appId)?.name ?? null;
 }
 
 export function parseStoredAppId(raw: string | null): number | null {
@@ -121,4 +134,23 @@ export function summaryLine(p: {
 
 export function restartBanner(gameName: string): string {
   return `Restart ${gameName} to apply your changes.`;
+}
+
+export const SLIDER_LABELS = ["Off", "2x", "3x", "4x"] as const;
+
+export function multiplierToPosition(exists: boolean, multiplier: number): number {
+  if (!exists) return 0;
+  return Math.max(1, Math.min(3, Math.round(multiplier) - 1));
+}
+
+export function positionToMultiplier(position: number): number | null {
+  if (position <= 0) return null;
+  return Math.min(4, Math.round(position) + 1);
+}
+
+export function headerLine(
+  running: boolean,
+  p: { exists: boolean; multiplier: number; preset: string | null; performance_mode: boolean }
+): string {
+  return `${running ? "Running" : "Not running"} | ${p.exists ? summaryLine(p) : "Off"}`;
 }

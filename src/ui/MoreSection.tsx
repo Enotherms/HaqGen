@@ -2,6 +2,7 @@ import { ButtonItem, ConfirmModal, DropdownItem, PanelSectionRow, showModal } fr
 import { useState } from "react";
 import { healthCheck } from "../api";
 import { PRESET_LABELS, PRESET_ORDER, RESTART } from "../logic";
+import { S } from "../strings";
 import { RemoveData } from "./RemoveData";
 
 interface Props {
@@ -14,7 +15,7 @@ interface Props {
 
 function HealthModal({ ok, summary, details, closeModal }: { ok: boolean; summary: string; details: string; closeModal?: () => void }) {
   return (
-    <ConfirmModal strTitle="Health check" strOKButtonText="Close" bAlertDialog closeModal={closeModal}>
+    <ConfirmModal strTitle={S.healthCheck} strOKButtonText={S.close} bAlertDialog closeModal={closeModal}>
       <p>{ok ? "✓ " : "✗ "}{summary}</p>
       {details && (
         <pre style={{ fontSize: 11, whiteSpace: "pre-wrap", maxHeight: 300, overflow: "auto" }}>
@@ -31,7 +32,7 @@ export function MoreSection({ defaultPreset, onDefaultPreset, onShowLog, onReset
     <>
       <PanelSectionRow>
         <DropdownItem
-          label="Default preset for new games"
+          label={S.defaultPreset}
           description={RESTART.none}
           rgOptions={PRESET_ORDER.map((key) => ({ data: key, label: PRESET_LABELS[key] }))}
           selectedOption={defaultPreset}
@@ -53,21 +54,21 @@ export function MoreSection({ defaultPreset, onDefaultPreset, onShowLog, onReset
             }
           }}
         >
-          {checking ? "Checking..." : "Health check"}
+          {checking ? S.checking : S.healthCheck}
         </ButtonItem>
       </PanelSectionRow>
       <PanelSectionRow>
         <ButtonItem layout="below" description={RESTART.none} onClick={onShowLog}>
-          Show log
+          {S.showLog}
         </ButtonItem>
       </PanelSectionRow>
       <PanelSectionRow>
         <ButtonItem
           layout="below"
-          description={`Removes HaqGen's game profiles only. ${RESTART.game}`}
+          description={`${S.resetNote} ${RESTART.game}`}
           onClick={onReset}
         >
-          Reset profiles
+          {S.resetProfiles}
         </ButtonItem>
       </PanelSectionRow>
       <RemoveData onDone={onRemoved} />

@@ -2,6 +2,7 @@ import { ButtonItem, PanelSectionRow, SliderField, TextField, ToggleField } from
 import { useEffect, useState } from "react";
 import { ProfileInfo, Settings } from "../api";
 import { RESTART } from "../logic";
+import { S } from "../strings";
 
 interface Props {
   profile: ProfileInfo;
@@ -31,26 +32,8 @@ export function Advanced({
     <>
       <PanelSectionRow>
         <SliderField
-          label="Multiplier"
-          description={RESTART.instant}
-          value={profile.multiplier}
-          min={2}
-          max={4}
-          step={1}
-          notchCount={3}
-          notchTicksVisible
-          notchLabels={[
-            { notchIndex: 0, label: "2x" },
-            { notchIndex: 1, label: "3x" },
-            { notchIndex: 2, label: "4x" },
-          ]}
-          onChange={(v) => onChange({ multiplier: v })}
-        />
-      </PanelSectionRow>
-      <PanelSectionRow>
-        <SliderField
-          label="Flow scale"
-          description={`Lower is faster, higher looks better. ${RESTART.instant}`}
+          label={S.flowScale}
+          description={`${S.flowScaleNote} ${RESTART.instant}`}
           value={profile.flow_scale}
           min={0.25}
           max={1}
@@ -61,16 +44,16 @@ export function Advanced({
       </PanelSectionRow>
       <PanelSectionRow>
         <ToggleField
-          label="Performance model"
-          description={`Lighter model, uses less GPU. ${RESTART.instant}`}
+          label={S.perfModel}
+          description={`${S.perfModelNote} ${RESTART.instant}`}
           checked={profile.performance_mode}
           onChange={(v) => onChange({ performance_mode: v })}
         />
       </PanelSectionRow>
       <PanelSectionRow>
         <TextField
-          label="Game process names"
-          description={`Turns the profile on automatically. ${RESTART.game}`}
+          label={S.processNames}
+          description={`${S.processNamesNote} ${RESTART.game}`}
           value={exes}
           onChange={(e) => setExes(e.target.value)}
           onBlur={() => onProcessNames(exes.split(",").map((s) => s.trim()).filter(Boolean))}
@@ -80,7 +63,7 @@ export function Advanced({
         <ButtonItem
           layout="below"
           disabled={!gameRunning || detecting}
-          description={gameRunning ? "Finds the running game's .exe" : "Start the game to use Detect"}
+          description={gameRunning ? S.detectRunning : S.detectStart}
           onClick={async () => {
             setDetecting(true);
             try {
@@ -90,16 +73,16 @@ export function Advanced({
             }
           }}
         >
-          {detecting ? "Detecting..." : "Detect process name"}
+          {detecting ? S.detecting : S.detect}
         </ButtonItem>
       </PanelSectionRow>
       <PanelSectionRow>
         <ButtonItem
           layout="below"
-          description={`Only needed if it does not turn on by itself. ${RESTART.game}`}
+          description={`${S.copyLaunchNote} ${RESTART.game}`}
           onClick={onCopyLaunchOption}
         >
-          Copy launch option
+          {S.copyLaunch}
         </ButtonItem>
       </PanelSectionRow>
     </>

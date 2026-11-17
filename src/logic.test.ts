@@ -57,25 +57,40 @@ describe("PRESET_LABELS", () => {
   });
 });
 
-import { buildGameOptions, parseStoredAppId } from "./logic";
+import { buildGameOptions, gameName, parseStoredAppId } from "./logic";
 
 describe("buildGameOptions", () => {
   const games = [
     { app_id: 1, name: "Alpha" },
     { app_id: 2, name: "Beta" },
   ];
-  it("lists installed games in order", () => {
-    expect(buildGameOptions(games, null).map((o) => o.data)).toEqual([1, 2]);
+  it("groups installed games with a count", () => {
+    const out = buildGameOptions(games, null);
+    expect(out).toEqual([
+      { label: "Installed (2)", options: [{ data: 1, label: "Alpha" }, { data: 2, label: "Beta" }] },
+    ]);
   });
-  it("adds a running game that is not in the list, first", () => {
-    const out = buildGameOptions(games, { appId: 99, name: "Shortcut" });
-    expect(out[0]).toEqual({ data: 99, label: "Shortcut (running)" });
-    expect(out).toHaveLength(3);
-  });
-  it("marks a running installed game without duplicating it", () => {
+  it("puts the running game in its own group first, without duplicating it", () => {
     const out = buildGameOptions(games, { appId: 2, name: "Beta" });
-    expect(out).toHaveLength(2);
-    expect(out.find((o) => o.data === 2)?.label).toBe("Beta (running)");
+    expect(out[0]).toEqual({ label: "Running", options: [{ data: 2, label: "Beta" }] });
+    expect(out[1]).toEqual({ label: "Installed (1)", options: [{ data: 1, label: "Alpha" }] });
+  });
+  it("shows a running game that is not installed through Steam", () => {
+    const out = buildGameOptions(games, { appId: 99, name: "Shortcut" });
+    expect(out[0].options).toEqual([{ data: 99, label: "Shortcut" }]);
+    expect(out[1].label).toBe("Installed (2)");
+  });
+  it("returns no groups when nothing is installed or running", () => {
+    expect(buildGameOptions([], null)).toEqual([]);
+  });
+});
+
+describe("gameName", () => {
+  it("finds names from the list or the running game", () => {
+    const games = [{ app_id: 1, name: "Alpha" }];
+    expect(gameName(games, null, 1)).toBe("Alpha");
+    expect(gameName(games, { appId: 9, name: "Run" }, 9)).toBe("Run");
+    expect(gameName(games, null, 5)).toBeNull();
   });
 });
 
@@ -133,5 +148,35 @@ describe("restartBanner / PRESET_ORDER", () => {
   });
   it("orders presets weakest to strongest", () => {
     expect(PRESET_ORDER).toEqual(["battery", "balanced", "quality"]);
+  });
+});
+
+import { headerLine, multiplierToPosition, positionToMultiplier, SLIDER_LABELS } from "./logic";
+
+describe("multiplier slider", () => {
+  it("maps Off and 2x-4x to positions", () => {
+    expect(SLIDER_LABELS).toEqual(["Off", "2x", "3x", "4x"]);
+    expect(multiplierToPosition(false, 3)).toBe(0);
+    expect(multiplierToPosition(true, 2)).toBe(1);
+    expect(multiplierToPosition(true, 4)).toBe(3);
+    expect(positionToMultiplier(0)).toBeNull();
+    expect(positionToMultiplier(1)).toBe(2);
+    expect(positionToMultiplier(3)).toBe(4);
+  });
+  it("clamps odd values", () => {
+    expect(multiplierToPosition(true, 9)).toBe(3);
+    expect(positionToMultiplier(7)).toBe(4);
+    expect(positionToMultiplier(-1)).toBeNull();
+  });
+});
+
+describe("headerLine", () => {
+  it("describes running and off states", () => {
+    expect(
+      headerLine(true, { exists: true, multiplier: 2, preset: "balanced", performance_mode: false })
+    ).toBe("Running | 2x · Balanced · Standard model");
+    expect(
+      headerLine(false, { exists: false, multiplier: 2, preset: "balanced", performance_mode: false })
+    ).toBe("Not running | Off");
   });
 });
