@@ -5,37 +5,49 @@ from pathlib import Path
 
 from .manifest import load_manifest, record_paths
 
-LAUNCHER_NAME = "haqgen-launch"
+LAUNCHER_NAME = "haqgen"
 LAUNCHER_HEADER = "# HaqGen launcher"
 DEFAULT_PROFILE = "HaqGen Default"
+LAUNCH_OPTION = f"~/{LAUNCHER_NAME} %command%"
 
 SCRIPT = f"""#!/bin/sh
-{LAUNCHER_HEADER}. Steam launch option: ~/.local/bin/{LAUNCHER_NAME} %command%
-id="${{SteamAppId:-${{SteamGameId:-0}}}}"
+{LAUNCHER_HEADER}. Steam launch option: {LAUNCH_OPTION}
+id=""
+for candidate in "${{SteamAppId-}}" "${{SteamGameId-}}" "${{STEAM_COMPAT_APP_ID-}}"; do
+  case "$candidate" in
+    ''|*[!0-9]*) ;;
+    *) id="$candidate"; break ;;
+  esac
+done
 dir="${{HOME}}/.config/haqgen/games"
-if [ -f "$dir/$id.profile" ]; then
-  if [ -e "$dir/$id.off" ]; then
-    export DISABLE_LSFGVK=1
-  else
-    name=""
-    IFS= read -r name < "$dir/$id.profile" || [ -n "$name" ]
-    export LSFGVK_PROFILE="$name"
-  fi
-elif [ -e "$dir/default.off" ]; then
+LSFGVK_CONFIG="${{HOME}}/.config/lsfg-vk/conf.toml"
+export LSFGVK_CONFIG
+scope="default"
+if [ -n "$id" ] && [ -f "$dir/$id.profile" ]; then
+  scope="$id"
+fi
+if [ -e "$dir/$scope.off" ]; then
   export DISABLE_LSFGVK=1
-else
+elif [ "$scope" = "default" ]; then
   export LSFGVK_PROFILE="{DEFAULT_PROFILE}"
+else
+  name=""
+  IFS= read -r name < "$dir/$scope.profile" || [ -n "$name" ]
+  export LSFGVK_PROFILE="$name"
+fi
+if [ ! -e "$dir/$scope.gamescope-wsi" ]; then
+  export ENABLE_GAMESCOPE_WSI=0
 fi
 exec "$@"
 """
 
 
-def launcher_path(local_dir: Path) -> Path:
-    return Path(local_dir) / "bin" / LAUNCHER_NAME
+def launcher_path(home_dir: Path) -> Path:
+    return Path(home_dir) / LAUNCHER_NAME
 
 
-def install_launcher(local_dir: Path, manifest_path: Path) -> Path:
-    path = launcher_path(local_dir)
+def install_launcher(home_dir: Path, manifest_path: Path) -> Path:
+    path = launcher_path(home_dir)
     if path.exists():
         try:
             ours = LAUNCHER_HEADER in path.read_text(encoding="utf-8", errors="replace")

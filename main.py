@@ -69,6 +69,9 @@ class Plugin:
     async def save_default(self, settings: dict) -> dict:
         return await asyncio.to_thread(service.save_default, _paths(), settings)
 
+    async def set_gamescope_compat(self, app_id, on: bool) -> dict:
+        return await asyncio.to_thread(service.set_gamescope_compat, _paths(), app_id, on)
+
     async def set_enabled(self, app_id, enabled: bool) -> dict:
         return await asyncio.to_thread(service.set_enabled, _paths(), app_id, enabled)
 

@@ -19,10 +19,10 @@ def test_validate_builds_expected_command():
     assert spy.calls[0][0] == ["/x/lsfg-vk-cli", "validate"]
 
 
-def test_validate_sets_config_env_when_given():
+def test_validate_passes_config_flag_when_given():
     spy = Spy()
     validate_config(Path("/x/cli"), Path("/c/conf.toml"), runner=spy)
-    assert spy.calls[0][2]["LSFGVK_CONFIG"] == "/c/conf.toml"
+    assert spy.calls[0][0] == ["/x/cli", "validate", "--config", "/c/conf.toml"]
 
 
 def test_healthcheck_builds_expected_command():

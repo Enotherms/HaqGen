@@ -11,8 +11,8 @@ def validate_config(
     config: Path | None = None,
     runner: Callable[..., RunResult] = _run,
 ) -> RunResult:
-    env = {"LSFGVK_CONFIG": str(config)} if config is not None else None
-    return runner([str(cli), "validate"], timeout=15.0, env=env)
+    args = [str(cli), "validate"] + (["--config", str(config)] if config is not None else [])
+    return runner(args, timeout=15.0)
 
 
 def healthcheck(cli: Path, runner: Callable[..., RunResult] = _run) -> RunResult:

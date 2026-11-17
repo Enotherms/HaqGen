@@ -19,6 +19,7 @@ class RemovalPlan:
     refused: list[tuple[str, str]]
     missing: list[Path]
     roots: list[Path] = field(default_factory=list)
+    files: list[Path] = field(default_factory=list)
 
 
 @dataclass
@@ -62,11 +63,15 @@ def _inside(path: Path, roots: list[Path]) -> bool:
     return any(path != r and r in path.parents for r in roots)
 
 
-def _refusal(path: Path, roots: list[Path]) -> str | None:
+def _refusal(path: Path, roots: list[Path], files: list[Path] | None = None) -> str | None:
     if not path.is_absolute():
         return "not an absolute path"
     if ".." in path.parts:
         return "contains '..'"
+    if files and path in files:
+        if path.is_symlink():
+            return "is a symlink"
+        return None
     resolved_roots = [Path(os.path.realpath(r)) for r in roots]
     own = Path(os.path.realpath(path.parent)) / path.name
     if own in resolved_roots:
@@ -78,12 +83,15 @@ def _refusal(path: Path, roots: list[Path]) -> str | None:
     return None
 
 
-def plan_removal(manifest: Manifest, allowed_roots: list[Path]) -> RemovalPlan:
+def plan_removal(
+    manifest: Manifest, allowed_roots: list[Path], allowed_files: list[Path] | None = None
+) -> RemovalPlan:
     roots = [Path(r) for r in allowed_roots]
-    plan = RemovalPlan(to_delete=[], refused=[], missing=[], roots=roots)
+    files = [Path(f) for f in (allowed_files or [])]
+    plan = RemovalPlan(to_delete=[], refused=[], missing=[], roots=roots, files=files)
     for raw in manifest.paths:
         path = Path(raw)
-        reason = _refusal(path, roots)
+        reason = _refusal(path, roots, files)
         if reason:
             plan.refused.append((raw, reason))
         elif not os.path.lexists(path):
@@ -96,7 +104,7 @@ def plan_removal(manifest: Manifest, allowed_roots: list[Path]) -> RemovalPlan:
 def execute_removal(plan: RemovalPlan) -> RemovalReport:
     report = RemovalReport()
     for path in plan.to_delete:
-        reason = _refusal(path, plan.roots)
+        reason = _refusal(path, plan.roots, plan.files)
         if reason:
             report.failed.append((path, reason))
             continue

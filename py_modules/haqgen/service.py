@@ -13,10 +13,16 @@ from typing import Callable
 from .config import Config, ConfigError, Profile, load_config, needs_upgrade, save_config
 from .install import allowed_roots, install_lsfg_vk, lsfg_present
 from .lsfg_cli import healthcheck, validate_config
-from .locate import find_dll, game_install_dir, list_installed_games, lossless_on_wrong_branch
+from .locate import (
+    find_dll,
+    game_install_dir,
+    list_installed_games,
+    lossless_branch,
+    lossless_on_wrong_branch,
+)
 from .procs import find_game_exe
 from .settings import load_settings, save_settings
-from .launcher import DEFAULT_PROFILE, install_launcher, launcher_path
+from .launcher import DEFAULT_PROFILE, LAUNCH_OPTION, install_launcher, launcher_path
 from .manifest import execute_removal, load_manifest, plan_removal, record_paths, replace_manifest
 from .presets import (
     PRESETS,
@@ -41,6 +47,9 @@ class Paths:
     cli_path: Path | None = None
     settings_path: Path | None = None
     haqgen_dir: Path | None = None
+
+    def home(self) -> Path:
+        return self.local_dir.parent
 
     def haqgen_config(self) -> Path:
         return self.haqgen_dir or self.config_path.parent.parent / "haqgen"
@@ -170,21 +179,58 @@ def get_state(paths: Paths) -> dict:
         "dll_found": dll is not None,
         "dll_path": str(dll) if dll else None,
         "profiles": [],
-        "launcher_installed": launcher_path(paths.local_dir).exists(),
+        "launcher_installed": launcher_path(paths.home()).exists(),
+        "ls_branch": lossless_branch(paths.steam_roots),
+        "other_layers": _other_layers(paths),
         "wrong_branch": dll is None and lossless_on_wrong_branch(paths.steam_roots),
         "error": None,
     }
     try:
         cfg = load_config(paths.config_path)
         state["profiles"] = [p.name for p in cfg.profiles if _is_haqgen(p)]
-        stale_dll = dll is not None and cfg.dll != str(dll)
-        if paths.config_path.exists() and (stale_dll or needs_upgrade(paths.config_path)):
-            save_config(paths.config_path, dataclasses.replace(cfg, dll=str(dll)) if stale_dll else cfg)
+        if paths.config_path.exists():
+            _self_repair(paths, cfg, dll)
     except ConfigError as exc:
         state["error"] = str(exc)
     except OSError as exc:
         state["error"] = str(exc)
     return state
+
+
+_OWN_LAYERS = ("vklayer_lsfgvk", "steamoverlay", "steamfossilize")
+
+
+def _other_layers(paths: Paths) -> list[str]:
+    d = paths.local_dir / "share" / "vulkan" / "implicit_layer.d"
+    try:
+        names = {f.name[: -len(".json")] for f in d.iterdir() if f.name.endswith(".json")}
+    except OSError:
+        return []
+    names = {n[: -len(".x86")] if n.endswith(".x86") else n for n in names}
+    return sorted(n for n in names if not n.lower().startswith(_OWN_LAYERS))
+
+
+def _self_repair(paths: Paths, cfg: Config, dll: Path | None) -> None:
+    """Keep lsfg-vk's config usable: current DLL, version 2, Default profile, no stale links."""
+    changed = needs_upgrade(paths.config_path)
+    if dll is not None and cfg.dll != str(dll):
+        cfg, changed = dataclasses.replace(cfg, dll=str(dll)), True
+    if _find(cfg, DEFAULT_PROFILE) is None:
+        cfg, changed = upsert_profile(cfg, _base_default()), True
+    if changed:
+        save_config(paths.config_path, cfg)
+    names = {p.name for p in cfg.profiles}
+    d = paths.games_dir()
+    if d.is_dir():
+        for marker in d.glob("*.profile"):
+            try:
+                name = marker.read_text(encoding="utf-8").strip()
+            except OSError:
+                continue
+            if name not in names:
+                game_id = marker.name[: -len(".profile")]
+                for suffix in ("profile", "off", "gamescope-wsi"):
+                    (d / f"{game_id}.{suffix}").unlink(missing_ok=True)
 
 
 def setup(
@@ -205,7 +251,7 @@ def setup(
         if not result.ok:
             return {"ok": False, "error": "install_failed", "detail": result.error}
     try:
-        install_launcher(paths.local_dir, paths.manifest_path)
+        install_launcher(paths.home(), paths.manifest_path)
     except FileExistsError as exc:
         return {"ok": False, "error": "launcher_conflict", "detail": str(exc)}
     except OSError as exc:
@@ -250,7 +296,7 @@ def save_profile(paths: Paths, app_id: int, game_name: str, settings: dict) -> d
 
 
 def launch_option() -> str:
-    return "~/.local/bin/haqgen-launch %command%"
+    return LAUNCH_OPTION
 
 
 def _haqgen_profile_names(paths: Paths) -> list[str]:
@@ -261,7 +307,7 @@ def _haqgen_profile_names(paths: Paths) -> list[str]:
 
 
 def removal_preview(paths: Paths) -> dict:
-    plan = plan_removal(load_manifest(paths.manifest_path), _roots(paths))
+    plan = plan_removal(load_manifest(paths.manifest_path), _roots(paths), [launcher_path(paths.home())])
     return {
         "delete": [str(p) for p in plan.to_delete],
         "missing": [str(p) for p in plan.missing],
@@ -281,7 +327,7 @@ def remove_all(paths: Paths, confirmed: bool) -> dict:
     if not confirmed:
         return _fail("not_confirmed")
     manifest = load_manifest(paths.manifest_path)
-    plan = plan_removal(manifest, _roots(paths))
+    plan = plan_removal(manifest, _roots(paths), [launcher_path(paths.home())])
     report = execute_removal(plan)
     keep = [p for p, _ in plan.refused] + [str(p) for p, _ in report.failed]
     replace_manifest(paths.manifest_path, keep)
@@ -331,7 +377,7 @@ def delete_profile(paths: Paths, app_id: int, game_name: str) -> dict:
         if paths.config_path.exists():
             cfg = load_config(paths.config_path)
             save_config(paths.config_path, remove_profile(cfg, profile_name(app_id, game_name)))
-        for suffix in ("profile", "off"):
+        for suffix in ("profile", "off", "gamescope-wsi"):
             _marker(paths, app_id, suffix).unlink(missing_ok=True)
     except (ConfigError, OSError) as exc:
         return _fail(str(exc))
@@ -400,6 +446,7 @@ def get_scope(paths: Paths, app_id: int | None, game_name: str | None) -> dict:
         "game": game_name if app_id is not None else None,
         "profile": _profile_dict(profile, True),
         "enabled": not _marker(paths, marker_id, "off").exists(),
+        "gamescope_compat": not _marker(paths, marker_id, "gamescope-wsi").exists(),
         "error": error,
     }
 
@@ -441,3 +488,16 @@ def list_profiles(paths: Paths) -> list[dict]:
         if match:
             games.append({"app_id": int(match.group(1)), "game": match.group(2), "label": match.group(2)})
     return entries + sorted(games, key=lambda g: g["label"].lower())
+
+
+def set_gamescope_compat(paths: Paths, app_id: int | None, on: bool) -> dict:
+    """On (default) makes the launcher set ENABLE_GAMESCOPE_WSI=0; off leaves Gamescope's layer alone."""
+    try:
+        marker = _games(paths) / _marker(paths, app_id, "gamescope-wsi").name
+        if on:
+            marker.unlink(missing_ok=True)
+        else:
+            _write_marker(marker, "")
+    except OSError as exc:
+        return _fail(str(exc))
+    return {"ok": True}

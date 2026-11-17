@@ -121,3 +121,25 @@ def test_replace_manifest_overwrites_paths(tmp_path):
     record_paths(mp, [tmp_path / "a", tmp_path / "b"])
     replace_manifest(mp, [str(tmp_path / "b")])
     assert load_manifest(mp).paths == [str(tmp_path / "b")]
+
+
+def test_plan_allows_exact_extra_files_only(tmp_path):
+    home = tmp_path / "home"
+    home.mkdir()
+    (home / "haqgen").write_text("x")
+    (home / "other").write_text("keep")
+    plan = plan_removal(Manifest(paths=[str(home / "haqgen"), str(home / "other")]), [], allowed_files=[home / "haqgen"])
+    assert plan.to_delete == [home / "haqgen"]
+    assert len(plan.refused) == 1
+    report = execute_removal(plan)
+    assert report.deleted == [home / "haqgen"] and (home / "other").exists()
+
+
+def test_allowed_file_symlink_is_refused(tmp_path):
+    home = tmp_path / "home"
+    home.mkdir()
+    target = tmp_path / "precious"
+    target.write_text("x")
+    os.symlink(target, home / "haqgen")
+    plan = plan_removal(Manifest(paths=[str(home / "haqgen")]), [], allowed_files=[home / "haqgen"])
+    assert plan.to_delete == [] and len(plan.refused) == 1

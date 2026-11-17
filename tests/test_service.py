@@ -20,6 +20,7 @@ def paths(tmp_path):
         steam_roots=[tmp_path / "steam"],
         log_path=tmp_path / "plugin.log",
         local_dir=tmp_path / "local",
+        haqgen_dir=tmp_path / ".config" / "haqgen",
     )
 
 
@@ -47,7 +48,7 @@ def fake_fetch(url, dest):
 
 
 def test_launch_option_is_universal():
-    assert service.launch_option() == "~/.local/bin/haqgen-launch %command%"
+    assert service.launch_option() == "~/haqgen %command%"
 
 
 def test_get_state_without_dll(paths):
@@ -136,7 +137,7 @@ def test_removal_preview_lists_exact_paths(paths, tmp_path):
             str(paths.local_dir / "bin" / "lsfg-vk-cli"),
             str(paths.local_dir / "lib" / "liblsfg-vk-layer.so"),
             str(paths.local_dir / LAYER),
-            str(paths.local_dir / "bin" / "haqgen-launch"),
+            str(paths.home() / "haqgen"),
             str(paths.haqgen_config() / "games"),
         ]
     )
@@ -196,7 +197,7 @@ def test_setup_uses_existing_lsfg_vk_without_installing_or_claiming(paths, tmp_p
         f.write_text("other tool")
     r = service.setup(paths, fetch=None, url=None)
     assert r["ok"] is True, r
-    assert load_manifest(paths.manifest_path).paths == [str(paths.local_dir / "bin" / "haqgen-launch")]
+    assert load_manifest(paths.manifest_path).paths == [str(paths.home() / "haqgen")]
     assert (paths.local_dir / "bin" / "lsfg-vk-cli").read_text() == "other tool"
     service.remove_all(paths, confirmed=True)
     assert (paths.local_dir / "bin" / "lsfg-vk-cli").read_text() == "other tool"
@@ -348,7 +349,7 @@ def games_dir(paths):
 def test_setup_installs_launcher(paths, tmp_path):
     add_dll(tmp_path)
     assert service.setup(paths, fetch=fake_fetch, url="u")["ok"] is True
-    assert (paths.local_dir / "bin" / "haqgen-launch").exists()
+    assert (paths.home() / "haqgen").exists()
     assert service.get_state(paths)["launcher_installed"] is True
 
 
@@ -359,7 +360,7 @@ def test_setup_installs_launcher_when_lsfg_already_present(paths, tmp_path):
         f.parent.mkdir(parents=True, exist_ok=True)
         f.write_text("other")
     assert service.setup(paths)["ok"] is True
-    assert (paths.local_dir / "bin" / "haqgen-launch").exists()
+    assert (paths.home() / "haqgen").exists()
 
 
 def test_scope_without_game_is_default(paths):
@@ -427,7 +428,7 @@ def test_remove_all_removes_launcher_and_markers(paths, tmp_path):
     service.save_profile(paths, 7, "G", {})
     r = service.remove_all(paths, confirmed=True)
     assert r["ok"] is True, r
-    assert not (paths.local_dir / "bin" / "haqgen-launch").exists()
+    assert not (paths.home() / "haqgen").exists()
     assert not games_dir(paths).exists()
     assert [p.name for p in load_config(paths.config_path).profiles] == []
 
@@ -497,3 +498,69 @@ def test_state_removes_keys_lsfg_vk_rejects(paths, tmp_path):
     service.get_state(paths)
     import tomllib
     assert "current_profile" not in tomllib.loads(paths.config_path.read_text(encoding="utf-8"))["global"]
+
+
+def test_gamescope_compat_defaults_on_and_toggles_per_scope(paths):
+    assert service.get_scope(paths, None, None)["gamescope_compat"] is True
+    assert service.set_gamescope_compat(paths, None, False)["ok"] is True
+    assert (games_dir(paths) / "default.gamescope-wsi").exists()
+    assert service.get_scope(paths, None, None)["gamescope_compat"] is False
+    service.save_profile(paths, 7, "G", {})
+    assert service.get_scope(paths, 7, "G")["gamescope_compat"] is True
+    service.set_gamescope_compat(paths, None, True)
+    assert not (games_dir(paths) / "default.gamescope-wsi").exists()
+
+
+def test_delete_profile_removes_gamescope_marker(paths):
+    service.save_profile(paths, 7, "G", {})
+    service.set_gamescope_compat(paths, 7, False)
+    service.delete_profile(paths, 7, "G")
+    assert not (games_dir(paths) / "7.gamescope-wsi").exists()
+
+
+def _ls_manifest(tmp_path, body):
+    d = tmp_path / "steam" / "steamapps"
+    d.mkdir(parents=True, exist_ok=True)
+    (d / "appmanifest_993090.acf").write_text('"AppState"\n{\n"appid" "993090"\n' + body + "}\n", encoding="utf-8")
+
+
+def test_branch_status_on_lsfg_vk_branch(paths, tmp_path):
+    _ls_manifest(tmp_path, '"UserConfig"\n{\n"BetaKey" "lsfg-vk"\n}\n"MountedConfig"\n{\n"BetaKey" "lsfg-vk"\n}\n')
+    s = service.get_state(paths)
+    assert s["ls_branch"] == {"installed": True, "selected": "lsfg-vk", "current": "lsfg-vk"}
+
+
+def test_branch_status_default_and_switching(paths, tmp_path):
+    _ls_manifest(tmp_path, '"UserConfig"\n{\n"BetaKey" "lsfg-vk"\n}\n"MountedConfig"\n{\n}\n')
+    assert service.get_state(paths)["ls_branch"] == {"installed": True, "selected": "lsfg-vk", "current": "default"}
+
+
+def test_branch_status_not_installed(paths):
+    assert service.get_state(paths)["ls_branch"] == {"installed": False, "selected": None, "current": None}
+
+
+def test_state_lists_other_vulkan_layers(paths):
+    d = paths.local_dir / "share" / "vulkan" / "implicit_layer.d"
+    d.mkdir(parents=True)
+    for n in ("VkLayer_MAKO_render.json", "VkLayer_MAKO_render.x86.json", "VkLayer_LSFGVK_frame_generation.json", "steamoverlay_x86_64.json", "steamfossilize_i386.json", "vkBasalt.json"):
+        (d / n).write_text("{}")
+    assert service.get_state(paths)["other_layers"] == ["VkLayer_MAKO_render", "vkBasalt"]
+
+
+def test_state_restores_missing_default_profile(paths, tmp_path):
+    dll = add_dll(tmp_path)
+    paths.config_path.parent.mkdir(parents=True)
+    paths.config_path.write_text(f'version = 2\n\n[global]\ndll = "{dll}"\n', encoding="utf-8")
+    service.get_state(paths)
+    assert "HaqGen Default" in [p.name for p in load_config(paths.config_path).profiles]
+
+
+def test_state_drops_markers_for_missing_profiles(paths, tmp_path):
+    add_dll(tmp_path)
+    service.save_profile(paths, 7, "G", {})
+    service.set_enabled(paths, 7, False)
+    cfg = load_config(paths.config_path)
+    save_config(paths.config_path, Config(dll=cfg.dll, profiles=[p for p in cfg.profiles if p.name != "HaqGen 7 G"]))
+    service.get_state(paths)
+    assert not (games_dir(paths) / "7.profile").exists()
+    assert not (games_dir(paths) / "7.off").exists()

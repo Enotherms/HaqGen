@@ -34,7 +34,7 @@ def test_get_state_runs_through_thread(plugin_module, tmp_path):
 
 def test_launch_option_method(plugin_module):
     p = plugin_module.Plugin()
-    assert asyncio.run(p.launch_option()) == "~/.local/bin/haqgen-launch %command%"
+    assert asyncio.run(p.launch_option()) == "~/haqgen %command%"
 
 
 def test_scope_methods(plugin_module):
@@ -95,3 +95,7 @@ def test_new_methods_exist_and_run(plugin_module):
 
 def test_list_profiles_method(plugin_module):
     assert asyncio.run(plugin_module.Plugin().list_profiles())[0]["label"] == "Default"
+
+
+def test_gamescope_method(plugin_module):
+    assert asyncio.run(plugin_module.Plugin().set_gamescope_compat(None, False))["ok"] is True

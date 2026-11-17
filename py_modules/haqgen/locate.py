@@ -97,3 +97,31 @@ def lossless_on_wrong_branch(steam_roots: list[Path]) -> bool:
             if (library / _APP_DIR / LEGACY_DLL).is_file():
                 return True
     return False
+
+
+LOSSLESS_APP_ID = 993090
+
+
+def _block(text: str, name: str) -> str | None:
+    match = re.search(r'"' + name + r'"\s*\{([^{}]*)\}', text)
+    return match.group(1) if match else None
+
+
+def lossless_branch(steam_roots: list[Path]) -> dict:
+    """Which Steam branch Lossless Scaling is on (selected by the user, and currently installed)."""
+    for root in steam_roots:
+        for library in steam_library_paths(root):
+            acf = library / "steamapps" / f"appmanifest_{LOSSLESS_APP_ID}.acf"
+            try:
+                text = acf.read_text(encoding="utf-8", errors="replace")
+            except OSError:
+                continue
+            def beta(block: str | None) -> str | None:
+                if block is None:
+                    return None
+                m = re.search(r'"BetaKey"\s+"([^"]*)"', block)
+                return (m.group(1) if m else "") or "default"
+            selected = beta(_block(text, "UserConfig")) or "default"
+            mounted = beta(_block(text, "MountedConfig"))
+            return {"installed": True, "selected": selected, "current": mounted or selected}
+    return {"installed": False, "selected": None, "current": None}
