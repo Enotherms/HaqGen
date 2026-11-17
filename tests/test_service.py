@@ -210,3 +210,44 @@ def test_setup_rejects_bad_checksum(paths, tmp_path):
     r = service.setup(paths, fetch=fake_fetch, url="u", sha256="0" * 64)
     assert r["ok"] is False and r["error"] == "install_failed"
     assert not (paths.local_dir / "bin").exists()
+
+
+def test_find_ca_bundle_picks_first_existing(tmp_path):
+    a = tmp_path / "missing.pem"
+    b = tmp_path / "b.pem"
+    c = tmp_path / "c.pem"
+    b.write_text("x")
+    c.write_text("y")
+    assert service.find_ca_bundle((a, b, c)) == str(b)
+
+
+def test_find_ca_bundle_none_when_nothing_exists(tmp_path):
+    assert service.find_ca_bundle((tmp_path / "nope.pem",)) is None
+
+
+def test_download_verifies_tls_with_system_bundle(tmp_path, monkeypatch):
+    import ssl
+    import urllib.request
+
+    bundle = tmp_path / "bundle.pem"
+    bundle.write_text("x")
+    seen = {}
+
+    class Resp(io.BytesIO):
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+    def fake_urlopen(url, timeout=None, context=None):
+        seen["context"] = context
+        return Resp(b"data")
+
+    monkeypatch.setattr(urllib.request, "urlopen", fake_urlopen)
+    monkeypatch.setattr(service, "CA_BUNDLES", (bundle,))
+    monkeypatch.setattr(ssl, "create_default_context", lambda cafile=None: ("ctx", cafile))
+    dest = tmp_path / "out.bin"
+    service.download("https://example.invalid/x", dest)
+    assert dest.read_bytes() == b"data"
+    assert seen["context"] == ("ctx", str(bundle))

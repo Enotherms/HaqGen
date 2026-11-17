@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import dataclasses
 import os
+import ssl
 import urllib.request
 from collections import deque
 from dataclasses import dataclass
@@ -39,8 +40,23 @@ class Paths:
         return self.cli_path or self.local_dir / "bin" / "lsfg-vk-cli"
 
 
+CA_BUNDLES = (
+    Path("/etc/ssl/certs/ca-certificates.crt"),
+    Path("/etc/ca-certificates/extracted/tls-ca-bundle.pem"),
+    Path("/etc/ssl/cert.pem"),
+)
+
+
+def find_ca_bundle(candidates=None) -> str | None:
+    for path in CA_BUNDLES if candidates is None else candidates:
+        if Path(path).is_file():
+            return str(path)
+    return None
+
+
 def download(url: str, dest: Path) -> None:
-    with urllib.request.urlopen(url, timeout=30) as resp, open(dest, "wb") as out:
+    context = ssl.create_default_context(cafile=find_ca_bundle())
+    with urllib.request.urlopen(url, timeout=30, context=context) as resp, open(dest, "wb") as out:
         while chunk := resp.read(1 << 16):
             out.write(chunk)
 

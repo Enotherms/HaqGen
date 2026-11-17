@@ -46,7 +46,7 @@ def test_delete_profile_method(plugin_module):
     assert asyncio.run(p.delete_profile(1, "G"))["ok"] is True
 
 
-def test_setup_failure_is_logged_with_detail(plugin_module, tmp_path, caplog):
+def test_setup_failure_is_logged_with_detail(plugin_module, tmp_path, caplog, monkeypatch):
     caplog.set_level(logging.ERROR, logger="haqgen-test")
     dll_dir = tmp_path / "steam" / "steamapps" / "common" / "Lossless Scaling"
     dll_dir.mkdir(parents=True)
@@ -55,14 +55,17 @@ def test_setup_failure_is_logged_with_detail(plugin_module, tmp_path, caplog):
     def boom(url, dest):
         raise OSError("no network")
 
-    plugin_module.service.download = boom
-    P = plugin_module.Path
-    plugin_module._paths = lambda: plugin_module.service.Paths(
+    monkeypatch.setattr(plugin_module.service, "download", boom)
+    monkeypatch.setattr(
+        plugin_module,
+        "_paths",
+        lambda: plugin_module.service.Paths(
         config_path=tmp_path / "cfg" / "conf.toml",
         manifest_path=tmp_path / "rt" / "m.json",
         data_dir=tmp_path / "rt",
         steam_roots=[tmp_path / "steam"],
         local_dir=tmp_path / "local",
+        ),
     )
     result = asyncio.run(plugin_module.Plugin().setup())
     assert result["ok"] is False and result["error"] == "install_failed"
