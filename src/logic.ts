@@ -74,22 +74,20 @@ export interface GameOption {
   label: string;
 }
 
-export interface GameGroup {
-  label: string;
-  options: GameOption[];
-}
-
 export function buildGameOptions(
   games: GameEntry[],
   running: { appId: number; name: string } | null
-): GameGroup[] {
-  const groups: GameGroup[] = [];
-  if (running) groups.push({ label: "Running", options: [{ data: running.appId, label: running.name }] });
-  const installed = games
+): GameOption[] {
+  const options: GameOption[] = games
     .filter((g) => !running || g.app_id !== running.appId)
     .map((g) => ({ data: g.app_id, label: g.name }));
-  if (installed.length > 0) groups.push({ label: `Installed (${installed.length})`, options: installed });
-  return groups;
+  if (running) options.unshift({ data: running.appId, label: `${running.name} · Running` });
+  return options;
+}
+
+export function gamesCountLabel(count: number): string {
+  if (count === 0) return "No installed games found";
+  return `${count} installed game${count === 1 ? "" : "s"}`;
 }
 
 export function gameName(

@@ -57,31 +57,42 @@ describe("PRESET_LABELS", () => {
   });
 });
 
-import { buildGameOptions, gameName, parseStoredAppId } from "./logic";
+import { buildGameOptions, gameName, gamesCountLabel, parseStoredAppId } from "./logic";
 
 describe("buildGameOptions", () => {
   const games = [
     { app_id: 1, name: "Alpha" },
     { app_id: 2, name: "Beta" },
   ];
-  it("groups installed games with a count", () => {
+  it("returns a flat list of single options (Steam's dropdown cannot select inside groups)", () => {
     const out = buildGameOptions(games, null);
     expect(out).toEqual([
-      { label: "Installed (2)", options: [{ data: 1, label: "Alpha" }, { data: 2, label: "Beta" }] },
+      { data: 1, label: "Alpha" },
+      { data: 2, label: "Beta" },
     ]);
+    expect(out.every((o) => !("options" in o))).toBe(true);
   });
-  it("puts the running game in its own group first, without duplicating it", () => {
-    const out = buildGameOptions(games, { appId: 2, name: "Beta" });
-    expect(out[0]).toEqual({ label: "Running", options: [{ data: 2, label: "Beta" }] });
-    expect(out[1]).toEqual({ label: "Installed (1)", options: [{ data: 1, label: "Alpha" }] });
+  it("puts the running game first, marked, without duplicating it", () => {
+    expect(buildGameOptions(games, { appId: 2, name: "Beta" })).toEqual([
+      { data: 2, label: "Beta · Running" },
+      { data: 1, label: "Alpha" },
+    ]);
   });
   it("shows a running game that is not installed through Steam", () => {
     const out = buildGameOptions(games, { appId: 99, name: "Shortcut" });
-    expect(out[0].options).toEqual([{ data: 99, label: "Shortcut" }]);
-    expect(out[1].label).toBe("Installed (2)");
+    expect(out[0]).toEqual({ data: 99, label: "Shortcut · Running" });
+    expect(out).toHaveLength(3);
   });
-  it("returns no groups when nothing is installed or running", () => {
+  it("returns nothing when nothing is installed or running", () => {
     expect(buildGameOptions([], null)).toEqual([]);
+  });
+});
+
+describe("gamesCountLabel", () => {
+  it("describes how many games were found", () => {
+    expect(gamesCountLabel(0)).toBe("No installed games found");
+    expect(gamesCountLabel(1)).toBe("1 installed game");
+    expect(gamesCountLabel(3)).toBe("3 installed games");
   });
 });
 

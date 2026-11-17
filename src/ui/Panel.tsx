@@ -25,6 +25,7 @@ import {
   describeError,
   GameEntry,
   gameName as findGameName,
+  gamesCountLabel,
   parseStoredAppId,
   positionToMultiplier,
   restartBanner,
@@ -282,6 +283,7 @@ export function Panel() {
         <PanelSectionRow>
           <DropdownItem
             label={S.game}
+            description={gamesCountLabel(games.length)}
             rgOptions={options}
             selectedOption={selectedId}
             strDefaultLabel={S.pickGame}
