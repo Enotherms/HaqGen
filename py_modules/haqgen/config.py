@@ -43,7 +43,7 @@ _PROFILE_KEYS = {
     "multiplier",
     "flow_scale",
     "performance_mode",
-    "pacing",
+    "pacing_mode",
     "override_present_mode",
     "preserve_swapchain_image_count",
 }
@@ -96,7 +96,7 @@ def load_config(path: Path) -> Config:
                 performance_mode=_expect(
                     raw.get("performance_mode", False), bool, "performance_mode"
                 ),
-                pacing=_expect(raw.get("pacing", "vsync"), str, "pacing"),
+                pacing=_expect(raw.get("pacing_mode", raw.get("pacing", "vsync")), str, "pacing_mode"),
                 override_present_mode=_expect(
                     raw.get("override_present_mode", True), bool, "override_present_mode"
                 ),
@@ -148,11 +148,14 @@ def dump_config(cfg: Config) -> str:
             "",
             "[[profile]]",
             f"name = {_value(p.name)}",
-            f"active_in = {_value(p.active_in)}",
+        ]
+        if p.active_in:
+            lines.append(f"active_in = {_value(p.active_in)}")
+        lines += [
             f"multiplier = {_value(p.multiplier)}",
             f"flow_scale = {_value(p.flow_scale)}",
             f"performance_mode = {_value(p.performance_mode)}",
-            f"pacing = {_value(p.pacing)}",
+            f"pacing_mode = {_value(p.pacing)}",
             f"override_present_mode = {_value(p.override_present_mode)}",
             f"preserve_swapchain_image_count = {_value(p.preserve_swapchain_image_count)}",
         ]

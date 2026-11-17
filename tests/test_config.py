@@ -44,7 +44,7 @@ def test_roundtrip_preserves_values(tmp_path):
     assert p["multiplier"] == 3
     assert p["flow_scale"] == 0.75
     assert p["performance_mode"] is True
-    assert p["pacing"] == "vsync"
+    assert p["pacing_mode"] == "vsync"
 
     path = tmp_path / "conf.toml"
     save_config(path, cfg)
@@ -185,4 +185,52 @@ def test_needs_upgrade_when_unknown_keys_present(tmp_path):
     p.write_text('version = 2\n[[profile]]\nname = "A"\nfuture = 1\n', encoding="utf-8")
     assert needs_upgrade(p) is True
     p.write_text('version = 2\n[global]\nlog_level = "debug"\n\n[[profile]]\nname = "A"\nmultiplier = 2\n', encoding="utf-8")
+    assert needs_upgrade(p) is False
+
+
+def test_exact_format_matches_lsfg_vk_2():
+    cfg = Config(
+        dll="/home/deck/LS/lsfg-vk.dll",
+        profiles=[
+            Profile(name="HaqGen Default", multiplier=2, flow_scale=0.75),
+            Profile(name="HaqGen 5 Game", active_in=["game.exe"], multiplier=3, flow_scale=0.5, performance_mode=True),
+        ],
+    )
+    assert dump_config(cfg) == (
+        'version = 2\n'
+        '\n'
+        '[global]\n'
+        'dll = "/home/deck/LS/lsfg-vk.dll"\n'
+        'allow_fp16 = true\n'
+        '\n'
+        '[[profile]]\n'
+        'name = "HaqGen Default"\n'
+        'multiplier = 2\n'
+        'flow_scale = 0.75\n'
+        'performance_mode = false\n'
+        'pacing_mode = "vsync"\n'
+        'override_present_mode = true\n'
+        'preserve_swapchain_image_count = false\n'
+        '\n'
+        '[[profile]]\n'
+        'name = "HaqGen 5 Game"\n'
+        'active_in = ["game.exe"]\n'
+        'multiplier = 3\n'
+        'flow_scale = 0.5\n'
+        'performance_mode = true\n'
+        'pacing_mode = "vsync"\n'
+        'override_present_mode = true\n'
+        'preserve_swapchain_image_count = false\n'
+    )
+
+
+def test_reads_pacing_mode_and_cleans_old_pacing_key(tmp_path):
+    from haqgen.config import needs_upgrade
+
+    p = tmp_path / "conf.toml"
+    p.write_text('version = 2\n[[profile]]\nname = "A"\npacing = "vsync"\n', encoding="utf-8")
+    assert needs_upgrade(p) is True
+    save_config(p, load_config(p))
+    text = p.read_text(encoding="utf-8")
+    assert 'pacing_mode = "vsync"' in text and "\npacing =" not in text
     assert needs_upgrade(p) is False
