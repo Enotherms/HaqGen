@@ -191,3 +191,25 @@ describe("headerLine", () => {
     ).toBe("Not running | Off");
   });
 });
+
+import { pickerRows, pickerValue } from "./logic";
+
+describe("game list picker", () => {
+  const options = [
+    { data: 2, label: "Beta · Running" },
+    { data: 1, label: "Alpha" },
+  ];
+  it("marks the selected row", () => {
+    expect(pickerRows(options, 1)).toEqual([
+      { data: 2, label: "Beta · Running", selected: false },
+      { data: 1, label: "Alpha", selected: true },
+    ]);
+  });
+  it("marks nothing when no game is selected", () => {
+    expect(pickerRows(options, null).every((r) => !r.selected)).toBe(true);
+  });
+  it("shows the chosen game or a prompt", () => {
+    expect(pickerValue("Monster Hunter Wilds")).toBe("Monster Hunter Wilds");
+    expect(pickerValue(null)).toBe("Pick a game");
+  });
+});

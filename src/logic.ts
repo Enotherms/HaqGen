@@ -152,3 +152,15 @@ export function headerLine(
 ): string {
   return `${running ? "Running" : "Not running"} | ${p.exists ? summaryLine(p) : "Off"}`;
 }
+
+export interface PickerRow extends GameOption {
+  selected: boolean;
+}
+
+export function pickerRows(options: GameOption[], selectedId: number | null): PickerRow[] {
+  return options.map((o) => ({ ...o, selected: o.data === selectedId }));
+}
+
+export function pickerValue(selectedName: string | null): string {
+  return selectedName ?? "Pick a game";
+}

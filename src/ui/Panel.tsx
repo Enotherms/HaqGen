@@ -1,4 +1,4 @@
-import { ConfirmModal, DropdownItem, PanelSection, PanelSectionRow, showModal } from "@decky/ui";
+import { ConfirmModal, PanelSection, PanelSectionRow, showModal } from "@decky/ui";
 import { toaster } from "@decky/api";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -34,6 +34,7 @@ import { S } from "../strings";
 import { Advanced } from "./Advanced";
 import { Collapse } from "./Collapse";
 import { GameControls } from "./GameControls";
+import { GamePicker } from "./GamePicker";
 import { MoreSection } from "./MoreSection";
 import { loadValue, saveValue } from "./persist";
 import { StatusCard } from "./StatusCard";
@@ -280,16 +281,13 @@ export function Panel() {
       <PanelSection title={S.title}>
         {notice && <Notice text={notice} />}
         {banner && <Notice strong text={`⟳ ${banner}`} />}
-        <PanelSectionRow>
-          <DropdownItem
-            label={S.game}
-            description={gamesCountLabel(games.length)}
-            rgOptions={options}
-            selectedOption={selectedId}
-            strDefaultLabel={S.pickGame}
-            onChange={(o) => setSelectedId(o.data as number)}
-          />
-        </PanelSectionRow>
+        <GamePicker
+          options={options}
+          selectedId={selectedId}
+          selectedName={gameName ?? null}
+          countLabel={gamesCountLabel(games.length)}
+          onSelect={setSelectedId}
+        />
         {!gameName && <PanelSectionRow>{S.pickGameHint}</PanelSectionRow>}
         {gameName && profile && (
           <GameControls
