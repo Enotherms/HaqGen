@@ -19,6 +19,7 @@ import { Hint, PlainButton, PrimaryButton, SectionHeader, SegmentedChoice } from
 interface Props {
   scope: ScopeResult;
   running: boolean;
+  saved: boolean;
   picker: ReactNode;
   onMultiplier: (position: number) => void;
   onChange: (s: Settings) => void;
@@ -26,7 +27,7 @@ interface Props {
   onUseDefault: () => void;
 }
 
-export function NowPlaying({ scope, running, picker, onMultiplier, onChange, onSaveForGame, onUseDefault }: Props) {
+export function NowPlaying({ scope, running, saved, picker, onMultiplier, onChange, onSaveForGame, onUseDefault }: Props) {
   const p = scope.profile;
   const frameGenInfo = useInfo(S.frameGenInfo);
   const presetInfo = useInfo(p.preset ? `${RESTART.instant}.` : `${S.presetCustom} ${RESTART.instant}.`);
@@ -43,6 +44,7 @@ export function NowPlaying({ scope, running, picker, onMultiplier, onChange, onS
           bottomSeparator="none"
         />
       </PanelSectionRow>
+      <Hint>{saved ? <span style={{ color: "#8fd694", fontWeight: 600 }}>{S.saved}</span> : S.autoSave}</Hint>
       <PanelSectionRow>
         <SliderField
           label={S.frameGen}

@@ -157,3 +157,27 @@ describe("editTarget", () => {
     expect(editTarget(null, { app_id: null, game: null })).toEqual({ appId: null, game: null, locked: false });
   });
 });
+
+import { creatableGames } from "./logic";
+
+describe("creatableGames", () => {
+  const games = [
+    { app_id: 1, name: "Alpha" },
+    { app_id: 2, name: "Beta" },
+    { app_id: 3, name: "Gamma" },
+  ];
+  it("lists installed games that do not have a profile yet", () => {
+    const profiles = [
+      { app_id: null, game: null, label: "Default" },
+      { app_id: 2, game: "Beta", label: "Beta" },
+    ];
+    expect(creatableGames(games, profiles)).toEqual([
+      { app_id: 1, name: "Alpha" },
+      { app_id: 3, name: "Gamma" },
+    ]);
+  });
+  it("returns nothing when every game has a profile", () => {
+    const profiles = games.map((g) => ({ app_id: g.app_id, game: g.name, label: g.name }));
+    expect(creatableGames(games, profiles)).toEqual([]);
+  });
+});

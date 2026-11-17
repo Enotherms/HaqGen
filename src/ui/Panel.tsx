@@ -7,6 +7,7 @@ import {
   getScope,
   getState,
   launchOption,
+  listGames,
   listProfiles,
   ProfileEntry,
   readLog,
@@ -21,7 +22,7 @@ import {
 } from "../api";
 import { readCache, writeCache } from "../cache";
 import { copyText } from "../clipboard";
-import { debounce, describeError, editTarget, positionToMultiplier, restartBanner } from "../logic";
+import { creatableGames, debounce, describeError, editTarget, positionToMultiplier, restartBanner } from "../logic";
 import { S } from "../strings";
 import { Advanced } from "./Advanced";
 import { InfoContext } from "./info";
@@ -30,6 +31,7 @@ import { MoreSection } from "./MoreSection";
 import { NowPlaying } from "./NowPlaying";
 import { loadValue, saveValue } from "./persist";
 import { StatusCard } from "./StatusCard";
+import { CreateProfile } from "./CreateProfile";
 import { ProfilePicker } from "./ProfilePicker";
 import { CollapsePill, SectionHeader, ThemeStyle } from "./theme";
 import { useRunningGame } from "./useRunningGame";
@@ -55,6 +57,8 @@ function Notice({ text, strong }: { text: string; strong?: boolean }) {
 export function Panel() {
   const running = useRunningGame();
   const [profiles, setProfiles] = useState<ProfileEntry[]>([{ app_id: null, game: null, label: "Default" }]);
+  const [games, setGames] = useState<{ app_id: number; name: string }[]>(readCache().games ?? []);
+  const [savedAt, setSavedAt] = useState<number | null>(null);
   const [picked, setPicked] = useState<ProfileEntry | null>(() => {
     try {
       const raw = loadValue(KEY_PICKED);
@@ -125,7 +129,19 @@ export function Panel() {
   useEffect(() => {
     refresh();
     loadProfiles();
+    listGames()
+      .then((g) => {
+        writeCache({ games: g });
+        if (mounted.current) setGames(g);
+      })
+      .catch(() => {});
   }, [refresh, loadProfiles]);
+
+  useEffect(() => {
+    if (savedAt === null) return;
+    const t = setTimeout(() => setSavedAt(null), 2500);
+    return () => clearTimeout(t);
+  }, [savedAt]);
 
   useEffect(() => {
     setScope((readCache().profiles?.[appId ?? DEFAULT_KEY] as ScopeResult) ?? null);
@@ -143,6 +159,7 @@ export function Panel() {
       const r = own ? await saveProfile(appId!, gameName!, s) : await saveDefault(s);
       if (!mounted.current) return;
       setMessage(r.ok ? null : describeError(r.error));
+      if (r.ok) setSavedAt(Date.now());
       await loadScope();
     },
     [scope?.scope, appId, gameName, loadScope]
@@ -187,6 +204,18 @@ export function Panel() {
     needsRestart();
     await loadScope();
     await loadProfiles();
+  };
+
+  const onCreate = async (g: { app_id: number; name: string }) => {
+    const r = await saveProfile(g.app_id, g.name, {});
+    if (!mounted.current) return;
+    if (!r.ok) {
+      setMessage(describeError(r.error));
+      return;
+    }
+    toast(S.created(g.name));
+    await loadProfiles();
+    setPicked({ app_id: g.app_id, game: g.name, label: g.name });
   };
 
   const onUseDefault = async () => {
@@ -275,13 +304,17 @@ export function Panel() {
           <NowPlaying
             scope={scope}
             running={isRunning}
+            saved={savedAt !== null}
             picker={
-              <ProfilePicker
-                profiles={profiles}
-                selected={picked?.app_id ?? null}
-                locked={isRunning ? gameName : null}
-                onSelect={(entry) => setPicked(entry.app_id === null ? null : entry)}
-              />
+              <>
+                <ProfilePicker
+                  profiles={profiles}
+                  selected={picked?.app_id ?? null}
+                  locked={isRunning ? gameName : null}
+                  onSelect={(entry) => setPicked(entry.app_id === null ? null : entry)}
+                />
+                {!isRunning && <CreateProfile games={creatableGames(games, profiles)} onCreate={onCreate} />}
+              </>
             }
             onMultiplier={onMultiplier}
             onChange={onChange}

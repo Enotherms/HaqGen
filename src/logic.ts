@@ -136,3 +136,11 @@ export function editTarget(
   if (picked && picked.app_id !== null) return { appId: picked.app_id, game: picked.game, locked: false };
   return { appId: null, game: null, locked: false };
 }
+
+export function creatableGames(
+  games: { app_id: number; name: string }[],
+  profiles: { app_id: number | null }[]
+): { app_id: number; name: string }[] {
+  const taken = new Set(profiles.map((p) => p.app_id));
+  return games.filter((g) => !taken.has(g.app_id));
+}
