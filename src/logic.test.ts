@@ -57,62 +57,7 @@ describe("PRESET_LABELS", () => {
   });
 });
 
-import { buildGameOptions, gameName, gamesCountLabel, parseStoredAppId } from "./logic";
 
-describe("buildGameOptions", () => {
-  const games = [
-    { app_id: 1, name: "Alpha" },
-    { app_id: 2, name: "Beta" },
-  ];
-  it("returns a flat list of single options (Steam's dropdown cannot select inside groups)", () => {
-    const out = buildGameOptions(games, null);
-    expect(out).toEqual([
-      { data: 1, label: "Alpha" },
-      { data: 2, label: "Beta" },
-    ]);
-    expect(out.every((o) => !("options" in o))).toBe(true);
-  });
-  it("puts the running game first, marked, without duplicating it", () => {
-    expect(buildGameOptions(games, { appId: 2, name: "Beta" })).toEqual([
-      { data: 2, label: "Beta · Running" },
-      { data: 1, label: "Alpha" },
-    ]);
-  });
-  it("shows a running game that is not installed through Steam", () => {
-    const out = buildGameOptions(games, { appId: 99, name: "Shortcut" });
-    expect(out[0]).toEqual({ data: 99, label: "Shortcut · Running" });
-    expect(out).toHaveLength(3);
-  });
-  it("returns nothing when nothing is installed or running", () => {
-    expect(buildGameOptions([], null)).toEqual([]);
-  });
-});
-
-describe("gamesCountLabel", () => {
-  it("describes how many games were found", () => {
-    expect(gamesCountLabel(0)).toBe("No installed games found");
-    expect(gamesCountLabel(1)).toBe("1 installed game");
-    expect(gamesCountLabel(3)).toBe("3 installed games");
-  });
-});
-
-describe("gameName", () => {
-  it("finds names from the list or the running game", () => {
-    const games = [{ app_id: 1, name: "Alpha" }];
-    expect(gameName(games, null, 1)).toBe("Alpha");
-    expect(gameName(games, { appId: 9, name: "Run" }, 9)).toBe("Run");
-    expect(gameName(games, null, 5)).toBeNull();
-  });
-});
-
-describe("parseStoredAppId", () => {
-  it("accepts positive integers only", () => {
-    expect(parseStoredAppId("123")).toBe(123);
-    expect(parseStoredAppId("abc")).toBeNull();
-    expect(parseStoredAppId("-5")).toBeNull();
-    expect(parseStoredAppId(null)).toBeNull();
-  });
-});
 
 import { frameLimitTip, PRESET_ORDER, RESTART, restartBanner, summaryLine } from "./logic";
 
@@ -162,7 +107,7 @@ describe("restartBanner / PRESET_ORDER", () => {
   });
 });
 
-import { headerLine, multiplierToPosition, positionToMultiplier, SLIDER_LABELS } from "./logic";
+import { multiplierToPosition, positionToMultiplier, SLIDER_LABELS } from "./logic";
 
 describe("multiplier slider", () => {
   it("maps Off and 2x-4x to positions", () => {
@@ -181,35 +126,19 @@ describe("multiplier slider", () => {
   });
 });
 
-describe("headerLine", () => {
-  it("describes running and off states", () => {
-    expect(
-      headerLine(true, { exists: true, multiplier: 2, preset: "balanced", performance_mode: false })
-    ).toBe("Running | 2x · Balanced · Standard model");
-    expect(
-      headerLine(false, { exists: false, multiplier: 2, preset: "balanced", performance_mode: false })
-    ).toBe("Not running | Off");
-  });
-});
 
-import { pickerRows, pickerValue } from "./logic";
 
-describe("game list picker", () => {
-  const options = [
-    { data: 2, label: "Beta · Running" },
-    { data: 1, label: "Alpha" },
-  ];
-  it("marks the selected row", () => {
-    expect(pickerRows(options, 1)).toEqual([
-      { data: 2, label: "Beta · Running", selected: false },
-      { data: 1, label: "Alpha", selected: true },
-    ]);
+import { scopeLine, scopeTitle } from "./logic";
+
+describe("scope text", () => {
+  it("titles the profile being edited", () => {
+    expect(scopeTitle({ scope: "default", game: null })).toBe("Default profile");
+    expect(scopeTitle({ scope: "default", game: "Elden Ring" })).toBe("Elden Ring");
+    expect(scopeTitle({ scope: "game", game: "Elden Ring" })).toBe("Elden Ring");
   });
-  it("marks nothing when no game is selected", () => {
-    expect(pickerRows(options, null).every((r) => !r.selected)).toBe(true);
-  });
-  it("shows the chosen game or a prompt", () => {
-    expect(pickerValue("Monster Hunter Wilds")).toBe("Monster Hunter Wilds");
-    expect(pickerValue(null)).toBe("Pick a game");
+  it("explains which profile applies", () => {
+    expect(scopeLine({ scope: "default", game: null })).toBe("No game running · used by games without their own profile");
+    expect(scopeLine({ scope: "default", game: "Elden Ring" })).toBe("Running · uses the Default profile");
+    expect(scopeLine({ scope: "game", game: "Elden Ring" })).toBe("Running · has its own profile");
   });
 });

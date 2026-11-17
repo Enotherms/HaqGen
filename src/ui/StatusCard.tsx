@@ -55,6 +55,10 @@ export function StatusCard({
         >
           <Row first state={state.dll_found ? "ready" : "missing"} text={state.dll_found ? S.dllFound : S.dllMissing} />
           <Row state={state.installed ? "ready" : "missing"} text={state.installed ? S.lsfgFound : S.lsfgMissing} />
+          <Row
+            state={state.launcher_installed ? "ready" : "missing"}
+            text={state.launcher_installed ? S.launcherFound : S.launcherMissing}
+          />
           {notice && <Row state="warning" text={notice} />}
         </div>
       </PanelSectionRow>

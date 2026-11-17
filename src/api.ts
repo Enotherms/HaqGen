@@ -5,6 +5,7 @@ export interface State {
   dll_found: boolean;
   dll_path: string | null;
   profiles: string[];
+  launcher_installed: boolean;
   error: string | null;
 }
 
@@ -46,7 +47,7 @@ export const setup = callable<[], Result>("setup");
 export const getProfile = callable<[number, string], ProfileInfo>("get_profile");
 export const saveProfile = callable<[number, string, Settings], Result>("save_profile");
 export const deleteProfile = callable<[number, string], Result>("delete_profile");
-export const launchOption = callable<[number, string], string>("launch_option");
+export const launchOption = callable<[], string>("launch_option");
 export const removalPreview = callable<[], RemovalPreview>("removal_preview");
 export const removeAll = callable<[boolean], Result>("remove_all");
 export const readLog = callable<[number], string>("read_log");
@@ -64,3 +65,15 @@ export const detectProcess = callable<[number], { ok: boolean; exe?: string; err
 export const getSettings = callable<[], { default_preset: string }>("get_settings");
 export const setDefaultPreset = callable<[string], Result>("set_default_preset");
 export const healthCheck = callable<[], HealthResult>("health_check");
+
+export interface ScopeResult {
+  scope: "default" | "game";
+  game: string | null;
+  profile: ProfileInfo;
+  enabled: boolean;
+  error: string | null;
+}
+
+export const getScope = callable<[number | null, string | null], ScopeResult>("get_scope");
+export const saveDefault = callable<[Settings], Result>("save_default");
+export const setEnabled = callable<[number | null, boolean], Result>("set_enabled");

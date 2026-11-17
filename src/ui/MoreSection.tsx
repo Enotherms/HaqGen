@@ -1,13 +1,12 @@
-import { ButtonItem, ConfirmModal, DropdownItem, PanelSectionRow, showModal } from "@decky/ui";
+import { ConfirmModal, showModal } from "@decky/ui";
 import { useState } from "react";
 import { healthCheck } from "../api";
-import { PRESET_LABELS, PRESET_ORDER, RESTART } from "../logic";
 import { S } from "../strings";
+import { useInfo } from "./info";
 import { RemoveData } from "./RemoveData";
+import { Hint, PlainButton } from "./theme";
 
 interface Props {
-  defaultPreset: string;
-  onDefaultPreset: (preset: string) => void;
   onShowLog: () => void;
   onReset: () => void;
   onRemoved: () => void;
@@ -18,59 +17,33 @@ function HealthModal({ ok, summary, details, closeModal }: { ok: boolean; summar
     <ConfirmModal strTitle={S.healthCheck} strOKButtonText={S.close} bAlertDialog closeModal={closeModal}>
       <p>{ok ? "✓ " : "✗ "}{summary}</p>
       {details && (
-        <pre style={{ fontSize: 11, whiteSpace: "pre-wrap", maxHeight: 300, overflow: "auto" }}>
-          {details}
-        </pre>
+        <pre style={{ fontSize: 11, whiteSpace: "pre-wrap", maxHeight: 300, overflow: "auto" }}>{details}</pre>
       )}
     </ConfirmModal>
   );
 }
 
-export function MoreSection({ defaultPreset, onDefaultPreset, onShowLog, onReset, onRemoved }: Props) {
+export function MoreSection({ onShowLog, onReset, onRemoved }: Props) {
   const [checking, setChecking] = useState(false);
+  const resetInfo = useInfo(S.resetInfo);
   return (
     <>
-      <PanelSectionRow>
-        <DropdownItem
-          label={S.defaultPreset}
-          description={RESTART.none}
-          rgOptions={PRESET_ORDER.map((key) => ({ data: key, label: PRESET_LABELS[key] }))}
-          selectedOption={defaultPreset}
-          onChange={(o) => onDefaultPreset(o.data as string)}
-        />
-      </PanelSectionRow>
-      <PanelSectionRow>
-        <ButtonItem
-          layout="below"
-          disabled={checking}
-          description={RESTART.none}
-          onClick={async () => {
-            setChecking(true);
-            try {
-              const r = await healthCheck();
-              showModal(<HealthModal {...r} />);
-            } finally {
-              setChecking(false);
-            }
-          }}
-        >
-          {checking ? S.checking : S.healthCheck}
-        </ButtonItem>
-      </PanelSectionRow>
-      <PanelSectionRow>
-        <ButtonItem layout="below" description={RESTART.none} onClick={onShowLog}>
-          {S.showLog}
-        </ButtonItem>
-      </PanelSectionRow>
-      <PanelSectionRow>
-        <ButtonItem
-          layout="below"
-          description={`${S.resetNote} ${RESTART.game}`}
-          onClick={onReset}
-        >
-          {S.resetProfiles}
-        </ButtonItem>
-      </PanelSectionRow>
+      <PlainButton
+        disabled={checking}
+        onClick={async () => {
+          setChecking(true);
+          try {
+            showModal(<HealthModal {...await healthCheck()} />);
+          } finally {
+            setChecking(false);
+          }
+        }}
+      >
+        {checking ? S.checking : S.healthCheck}
+      </PlainButton>
+      <PlainButton onClick={onShowLog}>{S.showLog}</PlainButton>
+      <PlainButton onClick={onReset}>{S.resetProfiles}</PlainButton>
+      {resetInfo && <Hint>{resetInfo}</Hint>}
       <RemoveData onDone={onRemoved} />
     </>
   );

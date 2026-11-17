@@ -1,48 +1,39 @@
-import { ConfirmModal, PanelSection, PanelSectionRow, showModal } from "@decky/ui";
+import { ConfirmModal, DialogButton, PanelSection, PanelSectionRow, showModal } from "@decky/ui";
 import { toaster } from "@decky/api";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { FaInfoCircle } from "react-icons/fa";
 import {
   deleteProfile,
-  detectProcess,
-  getProfile,
-  getSettings,
+  getScope,
   getState,
   launchOption,
-  listGames,
-  ProfileInfo,
   readLog,
   resetDefaults,
+  saveDefault,
   saveProfile,
-  setDefaultPreset,
+  ScopeResult,
+  setEnabled,
   setup,
   Settings,
   State,
 } from "../api";
 import { readCache, writeCache } from "../cache";
-import {
-  buildGameOptions,
-  debounce,
-  describeError,
-  GameEntry,
-  gameName as findGameName,
-  gamesCountLabel,
-  parseStoredAppId,
-  positionToMultiplier,
-  restartBanner,
-} from "../logic";
+import { debounce, describeError, positionToMultiplier, restartBanner } from "../logic";
 import { S } from "../strings";
 import { Advanced } from "./Advanced";
-import { Collapse } from "./Collapse";
-import { GameControls } from "./GameControls";
-import { GamePicker } from "./GamePicker";
+import { InfoContext } from "./info";
+import { LaunchSection } from "./LaunchSection";
 import { MoreSection } from "./MoreSection";
+import { NowPlaying } from "./NowPlaying";
 import { loadValue, saveValue } from "./persist";
 import { StatusCard } from "./StatusCard";
+import { CollapsePill, SectionHeader } from "./theme";
 import { useRunningGame } from "./useRunningGame";
 
-const KEY_GAME = "haqgen.selectedApp";
+const KEY_INFO = "haqgen.showInfo";
 const KEY_ADVANCED = "haqgen.showAdvanced";
 const KEY_MORE = "haqgen.showMore";
+const DEFAULT_KEY = 0;
 
 function toast(body: string) {
   toaster.toast({ title: S.title, body });
@@ -51,30 +42,27 @@ function toast(body: string) {
 function Notice({ text, strong }: { text: string; strong?: boolean }) {
   return (
     <PanelSectionRow>
-      <div style={{ fontSize: 13, fontWeight: strong ? 600 : 400, color: strong ? undefined : "#ffb4a2" }}>
-        {text}
-      </div>
+      <div style={{ fontSize: 13, fontWeight: strong ? 600 : 400, color: strong ? undefined : "#ffb4a2" }}>{text}</div>
     </PanelSectionRow>
   );
 }
 
 export function Panel() {
-  const cached = readCache();
   const running = useRunningGame();
-  const [state, setState] = useState<State | null>((cached.state as State) ?? null);
-  const [games, setGames] = useState<GameEntry[]>(cached.games ?? []);
-  const [selectedId, setSelectedId] = useState<number | null>(() => parseStoredAppId(loadValue(KEY_GAME)));
-  const [profile, setProfile] = useState<ProfileInfo | null>(() => {
-    const id = parseStoredAppId(loadValue(KEY_GAME));
-    return id !== null ? ((cached.profiles?.[id] as ProfileInfo) ?? null) : null;
-  });
-  const [defaultPreset, setDefault] = useState(cached.defaultPreset ?? "balanced");
+  const appId = running?.appId ?? null;
+  const gameName = running?.name ?? null;
+  const cacheKey = appId ?? DEFAULT_KEY;
+
+  const [state, setState] = useState<State | null>((readCache().state as State) ?? null);
+  const [scope, setScope] = useState<ScopeResult | null>(
+    () => (readCache().profiles?.[cacheKey] as ScopeResult) ?? null
+  );
   const [message, setMessage] = useState<string | null>(null);
   const [restartFor, setRestartFor] = useState<number | null>(null);
+  const [showInfo, setShowInfo] = useState(() => loadValue(KEY_INFO) === "1");
   const [showAdvanced, setShowAdvanced] = useState(() => loadValue(KEY_ADVANCED) === "1");
   const [showMore, setShowMore] = useState(() => loadValue(KEY_MORE) === "1");
   const mounted = useRef(true);
-  const serverExists = useRef<boolean | null>(null);
 
   useEffect(() => {
     mounted.current = true;
@@ -82,6 +70,9 @@ export function Panel() {
       mounted.current = false;
     };
   }, []);
+  useEffect(() => saveValue(KEY_INFO, showInfo ? "1" : "0"), [showInfo]);
+  useEffect(() => saveValue(KEY_ADVANCED, showAdvanced ? "1" : "0"), [showAdvanced]);
+  useEffect(() => saveValue(KEY_MORE, showMore ? "1" : "0"), [showMore]);
 
   const refresh = useCallback(async () => {
     try {
@@ -93,131 +84,91 @@ export function Panel() {
     }
   }, []);
 
-  useEffect(() => {
-    refresh();
-    listGames()
-      .then((g) => {
-        writeCache({ games: g });
-        if (mounted.current) setGames(g);
-      })
-      .catch(() => {});
-    getSettings()
-      .then((s) => {
-        writeCache({ defaultPreset: s.default_preset });
-        if (mounted.current) setDefault(s.default_preset);
-      })
-      .catch(() => {});
-  }, [refresh]);
-
-  const runningId = running?.appId;
-  useEffect(() => {
-    if (runningId !== undefined) setSelectedId(runningId);
-    setRestartFor(null);
-  }, [runningId]);
-
-  useEffect(() => saveValue(KEY_GAME, selectedId === null ? null : String(selectedId)), [selectedId]);
-  useEffect(() => saveValue(KEY_ADVANCED, showAdvanced ? "1" : "0"), [showAdvanced]);
-  useEffect(() => saveValue(KEY_MORE, showMore ? "1" : "0"), [showMore]);
-
-  const options = useMemo(() => buildGameOptions(games, running), [games, running]);
-  const appId = selectedId ?? undefined;
-  const gameName = appId !== undefined ? findGameName(games, running, appId) ?? undefined : undefined;
-  const gameRunning = appId !== undefined && appId === runningId;
-
-  const loadProfile = useCallback(async () => {
-    if (appId === undefined || gameName === undefined) {
-      setProfile(null);
-      return;
-    }
+  const loadScope = useCallback(async () => {
     try {
-      const p = await getProfile(appId, gameName);
-      serverExists.current = p.exists;
-      writeCache({ profile: { appId, value: p } });
-      if (mounted.current) setProfile(p);
+      const r = await getScope(appId, gameName);
+      writeCache({ profile: { appId: appId ?? DEFAULT_KEY, value: r } });
+      if (mounted.current) setScope(r);
     } catch (e) {
       if (mounted.current) setMessage(describeError(e));
     }
   }, [appId, gameName]);
 
   useEffect(() => {
-    const hit = appId !== undefined ? (readCache().profiles?.[appId] as ProfileInfo | undefined) : undefined;
-    setProfile(hit ?? null);
-    serverExists.current = null;
-    loadProfile();
-  }, [loadProfile]);
+    refresh();
+  }, [refresh]);
+
+  useEffect(() => {
+    setScope((readCache().profiles?.[appId ?? DEFAULT_KEY] as ScopeResult) ?? null);
+    setRestartFor(null);
+    loadScope();
+  }, [loadScope, appId]);
 
   const needsRestart = useCallback(() => {
-    if (gameRunning && appId !== undefined) setRestartFor(appId);
-  }, [gameRunning, appId]);
+    if (appId !== null) setRestartFor(appId);
+  }, [appId]);
 
-  const save = useCallback(
+  const saveActive = useCallback(
     async (s: Settings) => {
-      if (appId === undefined || gameName === undefined) return;
-      const r = await saveProfile(appId, gameName, s);
+      const own = scope?.scope === "game" && appId !== null && gameName !== null;
+      const r = own ? await saveProfile(appId!, gameName!, s) : await saveDefault(s);
       if (!mounted.current) return;
-      if (!r.ok) setMessage(describeError(r.error));
-      else setMessage(null);
-      await loadProfile();
+      setMessage(r.ok ? null : describeError(r.error));
+      await loadScope();
     },
-    [appId, gameName, loadProfile]
+    [scope?.scope, appId, gameName, loadScope]
   );
-
-  const debouncedSave = useMemo(() => debounce(save, 300), [save]);
+  const debouncedSave = useMemo(() => debounce(saveActive, 300), [saveActive]);
   useEffect(() => () => debouncedSave.cancel(), [debouncedSave]);
 
   const applyMultiplier = useCallback(
     async (position: number) => {
-      if (appId === undefined || gameName === undefined) return;
       const multiplier = positionToMultiplier(position);
-      const wasOn = serverExists.current === true;
-      const r =
-        multiplier === null
-          ? await deleteProfile(appId, gameName)
-          : await saveProfile(appId, gameName, { multiplier });
+      const target = scope?.scope === "game" ? appId : null;
+      const wasOn = scope?.enabled ?? true;
+      const r = await setEnabled(target, multiplier !== null);
+      if (multiplier !== null) await saveActive({ multiplier });
       if (!mounted.current) return;
       if (!r.ok) setMessage(describeError(r.error));
       if (wasOn !== (multiplier !== null)) needsRestart();
-      await loadProfile();
-      await refresh();
+      await loadScope();
     },
-    [appId, gameName, loadProfile, needsRestart, refresh]
+    [scope?.scope, scope?.enabled, appId, saveActive, needsRestart, loadScope]
   );
   const debouncedMultiplier = useMemo(() => debounce(applyMultiplier, 300), [applyMultiplier]);
   useEffect(() => () => debouncedMultiplier.cancel(), [debouncedMultiplier]);
 
   const onMultiplier = (position: number) => {
     const multiplier = positionToMultiplier(position);
-    setProfile((p) =>
-      p ? { ...p, exists: multiplier !== null, multiplier: multiplier ?? p.multiplier } : p
+    setScope((s) =>
+      s ? { ...s, enabled: multiplier !== null, profile: { ...s.profile, multiplier: multiplier ?? s.profile.multiplier } } : s
     );
     debouncedMultiplier(position);
   };
 
-  const changeInstant = (s: Settings) => {
-    setProfile((p) => (p ? ({ ...p, ...s } as ProfileInfo) : p));
+  const onChange = (s: Settings) => {
+    setScope((cur) => (cur ? { ...cur, profile: { ...cur.profile, ...s } as ScopeResult["profile"] } : cur));
     debouncedSave(s);
   };
 
-  const onProcessNames = async (names: string[]) => {
-    await save({ exe_names: names });
+  const onSaveForGame = async () => {
+    if (appId === null || gameName === null) return;
+    const r = await saveProfile(appId, gameName, {});
+    if (!r.ok) setMessage(describeError(r.error));
     needsRestart();
+    await loadScope();
   };
 
-  const onDetect = async () => {
-    if (appId === undefined || !profile) return;
-    const r = await detectProcess(appId);
-    if (!mounted.current) return;
-    if (!r.ok || !r.exe) {
-      toast(describeError(r.error));
-      return;
-    }
-    await onProcessNames(Array.from(new Set([...profile.exe_names, r.exe])));
-    toast(S.detectFound(r.exe));
+  const onUseDefault = async () => {
+    if (appId === null || gameName === null) return;
+    const r = await deleteProfile(appId, gameName);
+    if (!r.ok) setMessage(describeError(r.error));
+    needsRestart();
+    await loadScope();
   };
 
-  const onCopyLaunchOption = async () => {
-    if (appId === undefined || gameName === undefined) return;
-    const text = await launchOption(appId, gameName);
+  const onCopy = async () => {
+    const text = await launchOption();
     try {
       await navigator.clipboard.writeText(text);
       toast(S.copied);
@@ -230,9 +181,7 @@ export function Panel() {
     const text = await readLog(200);
     showModal(
       <ConfirmModal strTitle={S.logTitle} strOKButtonText={S.close} bAlertDialog>
-        <pre style={{ fontSize: 11, whiteSpace: "pre-wrap", maxHeight: 360, overflow: "auto" }}>
-          {text || S.logEmpty}
-        </pre>
+        <pre style={{ fontSize: 11, whiteSpace: "pre-wrap", maxHeight: 360, overflow: "auto" }}>{text || S.logEmpty}</pre>
       </ConfirmModal>
     );
   };
@@ -241,15 +190,8 @@ export function Panel() {
     const r = await resetDefaults();
     toast(r.ok ? S.resetDone : describeError(r.error));
     needsRestart();
-    await loadProfile();
+    await loadScope();
     await refresh();
-  };
-
-  const onDefaultPreset = async (preset: string) => {
-    setDefault(preset);
-    writeCache({ defaultPreset: preset });
-    const r = await setDefaultPreset(preset);
-    if (!r.ok) toast(describeError(r.error));
   };
 
   const onSetup = async () => {
@@ -258,78 +200,73 @@ export function Panel() {
     setMessage(r.ok ? null : describeError(r.error, r.detail));
     if (r.ok) toast(S.setupDone);
     await refresh();
+    await loadScope();
   };
+
+  const infoToggle = (
+    <PanelSectionRow>
+      <div style={{ display: "flex", justifyContent: "flex-end" }}>
+        <DialogButton
+          onClick={() => setShowInfo((v) => !v)}
+          style={{ width: "auto", minWidth: 0, height: 28, minHeight: 28, padding: "0 12px", display: "flex", alignItems: "center", gap: 6, fontSize: 12 }}
+        >
+          <FaInfoCircle size={12} /> {showInfo ? S.hideInfo : S.showInfo}
+        </DialogButton>
+      </div>
+    </PanelSectionRow>
+  );
 
   if (!state) {
     return (
-      <PanelSection title={S.title}>
+      <PanelSection>
         <PanelSectionRow>{message ?? S.loading}</PanelSectionRow>
       </PanelSection>
     );
   }
 
-  const notice = message ?? state.error;
-
-  if (!(state.installed && state.dll_found)) {
+  const notice = message ?? state.error ?? scope?.error ?? null;
+  if (!(state.installed && state.dll_found && state.launcher_installed)) {
     return <StatusCard state={state} notice={notice} onSetup={onSetup} />;
   }
-
   const banner = restartFor !== null && restartFor === appId && gameName ? restartBanner(gameName) : null;
 
   return (
-    <>
-      <PanelSection title={S.title}>
+    <InfoContext.Provider value={showInfo}>
+      <PanelSection>
+        {infoToggle}
         {notice && <Notice text={notice} />}
         {banner && <Notice strong text={`⟳ ${banner}`} />}
-        <GamePicker
-          options={options}
-          selectedId={selectedId}
-          selectedName={gameName ?? null}
-          countLabel={gamesCountLabel(games.length)}
-          onSelect={setSelectedId}
-        />
-        {!gameName && <PanelSectionRow>{S.pickGameHint}</PanelSectionRow>}
-        {gameName && profile && (
-          <GameControls
-            gameName={gameName}
-            running={gameRunning}
-            profile={profile}
+        {scope && (
+          <NowPlaying
+            scope={scope}
             onMultiplier={onMultiplier}
-            onChange={changeInstant}
+            onChange={onChange}
+            onSaveForGame={onSaveForGame}
+            onUseDefault={onUseDefault}
           />
         )}
-      </PanelSection>
-      {gameName && profile?.exists && (
-        <PanelSection>
-          <Collapse label={S.advanced} open={showAdvanced} onToggle={() => setShowAdvanced((v) => !v)} />
-          {showAdvanced && (
-            <Advanced
-              profile={profile}
-              gameRunning={gameRunning}
-              onChange={changeInstant}
-              onProcessNames={onProcessNames}
-              onDetect={onDetect}
-              onCopyLaunchOption={onCopyLaunchOption}
-            />
-          )}
-        </PanelSection>
-      )}
-      <PanelSection>
-        <Collapse label={S.more} open={showMore} onToggle={() => setShowMore((v) => !v)} />
+        <LaunchSection onCopy={onCopy} />
+        {scope?.enabled && (
+          <>
+            <SectionHeader title={S.advanced} />
+            <CollapsePill label={S.advanced} open={showAdvanced} onToggle={() => setShowAdvanced((v) => !v)} />
+            {showAdvanced && <Advanced profile={scope.profile} onChange={onChange} />}
+          </>
+        )}
+        <SectionHeader title={S.more} />
+        <CollapsePill label={S.more} open={showMore} onToggle={() => setShowMore((v) => !v)} />
         {showMore && (
           <MoreSection
-            defaultPreset={defaultPreset}
-            onDefaultPreset={onDefaultPreset}
             onShowLog={onShowLog}
             onReset={onReset}
             onRemoved={async () => {
               needsRestart();
-              await loadProfile();
+              await loadScope();
               await refresh();
             }}
           />
         )}
       </PanelSection>
-    </>
+    </InfoContext.Provider>
   );
 }

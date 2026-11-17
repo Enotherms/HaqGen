@@ -1,8 +1,11 @@
-import { ButtonItem, ConfirmModal, PanelSectionRow, showModal } from "@decky/ui";
+import { ConfirmModal, showModal } from "@decky/ui";
 import { toaster } from "@decky/api";
 import { useState } from "react";
 import { removalPreview, removeAll, RemovalPreview } from "../api";
-import { describeError, RESTART } from "../logic";
+import { describeError } from "../logic";
+import { S } from "../strings";
+import { useInfo } from "./info";
+import { DangerButton, Hint } from "./theme";
 
 function PreviewModal({
   preview,
@@ -58,6 +61,7 @@ function PreviewModal({
 
 export function RemoveData({ onDone }: { onDone: () => void }) {
   const [busy, setBusy] = useState(false);
+  const info = useInfo(S.removeInfo);
 
   const start = async () => {
     setBusy(true);
@@ -84,15 +88,11 @@ export function RemoveData({ onDone }: { onDone: () => void }) {
   };
 
   return (
-    <PanelSectionRow>
-      <ButtonItem
-        layout="below"
-        disabled={busy}
-        description={`Asks before deleting. ${RESTART.remove}`}
-        onClick={start}
-      >
-        Remove plugin data
-      </ButtonItem>
-    </PanelSectionRow>
+    <>
+      <DangerButton disabled={busy} onClick={start}>
+        {S.removeData}
+      </DangerButton>
+      {info && <Hint>{info}</Hint>}
+    </>
   );
 }

@@ -64,46 +64,6 @@ export function settingsEqual(a: unknown, b: unknown): boolean {
   return canonical(a) === canonical(b);
 }
 
-export interface GameEntry {
-  app_id: number;
-  name: string;
-}
-
-export interface GameOption {
-  data: number;
-  label: string;
-}
-
-export function buildGameOptions(
-  games: GameEntry[],
-  running: { appId: number; name: string } | null
-): GameOption[] {
-  const options: GameOption[] = games
-    .filter((g) => !running || g.app_id !== running.appId)
-    .map((g) => ({ data: g.app_id, label: g.name }));
-  if (running) options.unshift({ data: running.appId, label: `${running.name} · Running` });
-  return options;
-}
-
-export function gamesCountLabel(count: number): string {
-  if (count === 0) return "No installed games found";
-  return `${count} installed game${count === 1 ? "" : "s"}`;
-}
-
-export function gameName(
-  games: GameEntry[],
-  running: { appId: number; name: string } | null,
-  appId: number
-): string | null {
-  if (running && running.appId === appId) return running.name;
-  return games.find((g) => g.app_id === appId)?.name ?? null;
-}
-
-export function parseStoredAppId(raw: string | null): number | null {
-  if (raw === null || !/^\d+$/.test(raw)) return null;
-  const n = Number(raw);
-  return n > 0 ? n : null;
-}
 
 export const RESTART = {
   instant: "Applies instantly",
@@ -146,21 +106,16 @@ export function positionToMultiplier(position: number): number | null {
   return Math.min(4, Math.round(position) + 1);
 }
 
-export function headerLine(
-  running: boolean,
-  p: { exists: boolean; multiplier: number; preset: string | null; performance_mode: boolean }
-): string {
-  return `${running ? "Running" : "Not running"} | ${p.exists ? summaryLine(p) : "Off"}`;
+export interface ScopeInfo {
+  scope: "default" | "game";
+  game: string | null;
 }
 
-export interface PickerRow extends GameOption {
-  selected: boolean;
+export function scopeTitle(s: ScopeInfo): string {
+  return s.game ?? "Default profile";
 }
 
-export function pickerRows(options: GameOption[], selectedId: number | null): PickerRow[] {
-  return options.map((o) => ({ ...o, selected: o.data === selectedId }));
-}
-
-export function pickerValue(selectedName: string | null): string {
-  return selectedName ?? "Pick a game";
+export function scopeLine(s: ScopeInfo): string {
+  if (!s.game) return "No game running · used by games without their own profile";
+  return s.scope === "game" ? "Running · has its own profile" : "Running · uses the Default profile";
 }
