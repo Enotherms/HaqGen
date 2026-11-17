@@ -1,6 +1,7 @@
 import {
   ButtonItem,
   ConfirmModal,
+  DropdownItem,
   PanelSection,
   PanelSectionRow,
   Router,
@@ -14,6 +15,7 @@ import {
   getProfile,
   getState,
   launchOption,
+  listGames,
   ProfileInfo,
   readLog,
   resetDefaults,
@@ -22,7 +24,14 @@ import {
   Settings,
   State,
 } from "../api";
-import { debounce, describeError, PRESET_LABELS } from "../logic";
+import {
+  buildGameOptions,
+  debounce,
+  describeError,
+  GameEntry,
+  parseStoredAppId,
+  PRESET_LABELS,
+} from "../logic";
 import { Advanced } from "./Advanced";
 import { RemoveData } from "./RemoveData";
 
@@ -31,7 +40,10 @@ function useRunningGame() {
   useEffect(() => {
     const read = () => {
       const app = Router.MainRunningApp;
-      setGame(app ? { appId: Number(app.appid), name: app.display_name } : null);
+      const next = app ? { appId: Number(app.appid), name: app.display_name } : null;
+      setGame((prev) =>
+        prev?.appId === next?.appId && prev?.name === next?.name ? prev : next
+      );
     };
     read();
     const id = setInterval(read, 2000);
@@ -40,12 +52,32 @@ function useRunningGame() {
   return game;
 }
 
+const STORE_KEY = "haqgen.selectedApp";
+
+function loadSelected(): number | null {
+  try {
+    return parseStoredAppId(window.localStorage.getItem(STORE_KEY));
+  } catch {
+    return null;
+  }
+}
+
+function saveSelected(id: number | null) {
+  try {
+    if (id === null) window.localStorage.removeItem(STORE_KEY);
+    else window.localStorage.setItem(STORE_KEY, String(id));
+  } catch {
+  }
+}
+
 function toast(body: string) {
   toaster.toast({ title: "HaqGen", body });
 }
 
 export function Panel() {
-  const game = useRunningGame();
+  const running = useRunningGame();
+  const [games, setGames] = useState<GameEntry[]>([]);
+  const [selectedId, setSelectedId] = useState<number | null>(loadSelected());
   const [state, setState] = useState<State | null>(null);
   const [profile, setProfile] = useState<ProfileInfo | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -71,6 +103,35 @@ export function Panel() {
   useEffect(() => {
     refresh();
   }, [refresh]);
+
+  useEffect(() => {
+    let cancelled = false;
+    listGames()
+      .then((g) => {
+        if (!cancelled) setGames(g);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const runningId = running?.appId;
+  useEffect(() => {
+    if (runningId !== undefined) setSelectedId(runningId);
+  }, [runningId]);
+
+  useEffect(() => {
+    saveSelected(selectedId);
+  }, [selectedId]);
+
+  const options = useMemo(() => buildGameOptions(games, running), [games, running]);
+  const game = useMemo(() => {
+    if (selectedId === null) return null;
+    const found = options.find((o) => o.data === selectedId);
+    if (!found) return null;
+    return { appId: selectedId, name: found.label.replace(/ \(running\)$/, "") };
+  }, [options, selectedId]);
 
   const appId = game?.appId;
   const gameName = game?.name;
@@ -190,8 +251,19 @@ export function Panel() {
             </ButtonItem>
           </PanelSectionRow>
         )}
+        {ready && (
+          <PanelSectionRow>
+            <DropdownItem
+              label="Game"
+              rgOptions={options}
+              selectedOption={selectedId}
+              strDefaultLabel="Pick a game"
+              onChange={(o) => setSelectedId(o.data as number)}
+            />
+          </PanelSectionRow>
+        )}
         {ready && !game && (
-          <PanelSectionRow>Start a game to set up its profile.</PanelSectionRow>
+          <PanelSectionRow>Pick a game above to set up its profile.</PanelSectionRow>
         )}
         {ready && game && profile && (
           <>

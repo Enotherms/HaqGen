@@ -251,3 +251,10 @@ def test_download_verifies_tls_with_system_bundle(tmp_path, monkeypatch):
     service.download("https://example.invalid/x", dest)
     assert dest.read_bytes() == b"data"
     assert seen["context"] == ("ctx", str(bundle))
+
+
+def test_service_list_games(paths, tmp_path):
+    d = tmp_path / "steam" / "steamapps"
+    d.mkdir(parents=True)
+    (d / "appmanifest_4.acf").write_text('"AppState"\n{\n"appid" "4"\n"name" "Four"\n}\n', encoding="utf-8")
+    assert service.list_games(paths) == [{"app_id": 4, "name": "Four"}]

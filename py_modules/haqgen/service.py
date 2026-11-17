@@ -12,7 +12,7 @@ from typing import Callable
 from .config import Config, ConfigError, Profile, load_config, save_config
 from .install import allowed_roots, install_lsfg_vk, lsfg_present
 from .lsfg_cli import validate_config
-from .locate import find_dll
+from .locate import find_dll, list_installed_games
 from .manifest import execute_removal, load_manifest, plan_removal, replace_manifest
 from .presets import (
     PRESETS,
@@ -248,3 +248,7 @@ def delete_profile(paths: Paths, app_id: int, game_name: str) -> dict:
     except (ConfigError, OSError) as exc:
         return _fail(str(exc))
     return {"ok": True}
+
+
+def list_games(paths: Paths) -> list[dict]:
+    return list_installed_games(paths.steam_roots)

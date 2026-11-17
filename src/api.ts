@@ -39,6 +39,7 @@ export interface RemovalPreview {
   profiles: string[];
 }
 
+export const listGames = callable<[], { app_id: number; name: string }[]>("list_games");
 export const getState = callable<[], State>("get_state");
 export const setup = callable<[], Result>("setup");
 export const getProfile = callable<[number, string], ProfileInfo>("get_profile");

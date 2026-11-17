@@ -61,3 +61,33 @@ function canonical(v: unknown): string {
 export function settingsEqual(a: unknown, b: unknown): boolean {
   return canonical(a) === canonical(b);
 }
+
+export interface GameEntry {
+  app_id: number;
+  name: string;
+}
+
+export interface GameOption {
+  data: number;
+  label: string;
+}
+
+export function buildGameOptions(
+  games: GameEntry[],
+  running: { appId: number; name: string } | null
+): GameOption[] {
+  const options: GameOption[] = games.map((g) => ({
+    data: g.app_id,
+    label: running && running.appId === g.app_id ? `${g.name} (running)` : g.name,
+  }));
+  if (running && !games.some((g) => g.app_id === running.appId)) {
+    options.unshift({ data: running.appId, label: `${running.name} (running)` });
+  }
+  return options;
+}
+
+export function parseStoredAppId(raw: string | null): number | null {
+  if (raw === null || !/^\d+$/.test(raw)) return null;
+  const n = Number(raw);
+  return n > 0 ? n : null;
+}

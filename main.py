@@ -41,6 +41,9 @@ class Plugin:
             decky.logger.error("HaqGen setup failed: %s", result)
         return result
 
+    async def list_games(self) -> list:
+        return await asyncio.to_thread(service.list_games, _paths())
+
     async def get_profile(self, app_id: int, game_name: str) -> dict:
         return await asyncio.to_thread(service.get_profile, _paths(), app_id, game_name)
 

@@ -56,3 +56,34 @@ describe("PRESET_LABELS", () => {
     expect(Object.keys(PRESET_LABELS)).toEqual(["battery", "balanced", "quality"]);
   });
 });
+
+import { buildGameOptions, parseStoredAppId } from "./logic";
+
+describe("buildGameOptions", () => {
+  const games = [
+    { app_id: 1, name: "Alpha" },
+    { app_id: 2, name: "Beta" },
+  ];
+  it("lists installed games in order", () => {
+    expect(buildGameOptions(games, null).map((o) => o.data)).toEqual([1, 2]);
+  });
+  it("adds a running game that is not in the list, first", () => {
+    const out = buildGameOptions(games, { appId: 99, name: "Shortcut" });
+    expect(out[0]).toEqual({ data: 99, label: "Shortcut (running)" });
+    expect(out).toHaveLength(3);
+  });
+  it("marks a running installed game without duplicating it", () => {
+    const out = buildGameOptions(games, { appId: 2, name: "Beta" });
+    expect(out).toHaveLength(2);
+    expect(out.find((o) => o.data === 2)?.label).toBe("Beta (running)");
+  });
+});
+
+describe("parseStoredAppId", () => {
+  it("accepts positive integers only", () => {
+    expect(parseStoredAppId("123")).toBe(123);
+    expect(parseStoredAppId("abc")).toBeNull();
+    expect(parseStoredAppId("-5")).toBeNull();
+    expect(parseStoredAppId(null)).toBeNull();
+  });
+});

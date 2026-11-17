@@ -71,3 +71,7 @@ def test_setup_failure_is_logged_with_detail(plugin_module, tmp_path, caplog, mo
     assert result["ok"] is False and result["error"] == "install_failed"
     assert "no network" in result["detail"]
     assert "no network" in caplog.text
+
+
+def test_list_games_method(plugin_module):
+    assert asyncio.run(plugin_module.Plugin().list_games()) == []
