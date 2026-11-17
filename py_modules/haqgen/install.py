@@ -64,7 +64,10 @@ def extract_archive(archive: Path, dest: Path) -> None:
     _check_names(_names(archive), dest)
     if tarfile.is_tarfile(archive):
         with tarfile.open(archive) as tar:
-            tar.extractall(dest, filter="data")
+            try:
+                tar.extractall(dest, filter="data")
+            except TypeError:
+                tar.extractall(dest)
     else:
         with zipfile.ZipFile(archive) as zf:
             zf.extractall(dest)

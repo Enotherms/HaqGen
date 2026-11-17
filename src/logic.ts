@@ -13,8 +13,11 @@ const ERROR_TEXT: Record<string, string> = {
   not_confirmed: "Please confirm before removing data.",
 };
 
-export function describeError(err: unknown): string {
-  if (typeof err === "string") return ERROR_TEXT[err] ?? err;
+export function describeError(err: unknown, detail?: string): string {
+  if (typeof err === "string") {
+    const text = ERROR_TEXT[err] ?? err;
+    return detail ? `${text} (${detail})` : text;
+  }
   if (err instanceof Error && err.message) return err.message;
   return "Something went wrong. Open the log for details.";
 }

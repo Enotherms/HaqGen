@@ -34,9 +34,12 @@ class Plugin:
         return await asyncio.to_thread(service.get_state, _paths())
 
     async def setup(self) -> dict:
-        return await asyncio.to_thread(
+        result = await asyncio.to_thread(
             service.setup, _paths(), service.download, LSFG_VK_URL, LSFG_VK_SHA256
         )
+        if not result.get("ok"):
+            decky.logger.error("HaqGen setup failed: %s", result)
+        return result
 
     async def get_profile(self, app_id: int, game_name: str) -> dict:
         return await asyncio.to_thread(service.get_profile, _paths(), app_id, game_name)

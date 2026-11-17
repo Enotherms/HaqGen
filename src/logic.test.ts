@@ -7,6 +7,9 @@ describe("describeError", () => {
     expect(describeError("install_url_unknown")).toMatch(/not available yet/i);
     expect(describeError("not_confirmed")).toMatch(/confirm/i);
   });
+  it("adds the detail for install_failed", () => {
+    expect(describeError("install_failed", "Checksum mismatch")).toMatch(/Checksum mismatch/);
+  });
   it("passes unknown strings through and handles non-strings", () => {
     expect(describeError("weird thing")).toBe("weird thing");
     expect(describeError(new Error("boom"))).toBe("boom");

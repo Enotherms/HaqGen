@@ -141,3 +141,16 @@ def test_extract_rejects_path_traversal(tmp_path):
     else:
         raise AssertionError("expected ValueError")
     assert not (tmp_path / "escape.txt").exists()
+
+
+def test_extract_works_when_tarfile_has_no_filter_support(tmp_path, monkeypatch):
+    real = tarfile.TarFile.extractall
+
+    def old_python(self, path=".", members=None, *, numeric_owner=False, **kw):
+        if "filter" in kw:
+            raise TypeError("extractall() got an unexpected keyword argument 'filter'")
+        return real(self, path, members, numeric_owner=numeric_owner)
+
+    monkeypatch.setattr(tarfile.TarFile, "extractall", old_python)
+    res = install_lsfg_vk(tmp_path / "local", tmp_path / "m.json", fetcher(FILES), "u")
+    assert res.ok, res.error

@@ -117,7 +117,7 @@ export function Panel() {
   const onSetup = async () => {
     const r = await setup();
     if (!mounted.current) return;
-    setMessage(r.ok ? null : describeError(r.error));
+    setMessage(r.ok ? null : describeError(r.error, r.detail));
     await refresh();
   };
 
@@ -177,6 +177,12 @@ export function Panel() {
             <div style={{ color: "#ffb4a2" }}>{message ?? state.error}</div>
           </PanelSectionRow>
         )}
+        <PanelSectionRow>
+          <div style={{ fontSize: 12, opacity: 0.8 }}>
+            lsfg-vk: {state.installed ? "found" : "not found"} | Lossless Scaling DLL:{" "}
+            {state.dll_found ? "found" : "not found"}
+          </div>
+        </PanelSectionRow>
         {!ready && (
           <PanelSectionRow>
             <ButtonItem layout="below" onClick={onSetup}>
