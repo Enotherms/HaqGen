@@ -4,15 +4,15 @@ import {
   DropdownItem,
   PanelSection,
   PanelSectionRow,
-  Router,
   showModal,
-  ToggleField,
 } from "@decky/ui";
 import { toaster } from "@decky/api";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   deleteProfile,
+  detectProcess,
   getProfile,
+  getSettings,
   getState,
   launchOption,
   listGames,
@@ -20,6 +20,7 @@ import {
   readLog,
   resetDefaults,
   saveProfile,
+  setDefaultPreset,
   setup,
   Settings,
   State,
@@ -30,58 +31,44 @@ import {
   describeError,
   GameEntry,
   parseStoredAppId,
-  PRESET_LABELS,
+  restartBanner,
 } from "../logic";
 import { Advanced } from "./Advanced";
-import { RemoveData } from "./RemoveData";
+import { GameControls } from "./GameControls";
+import { MoreSection } from "./MoreSection";
+import { loadValue, saveValue } from "./persist";
+import { SetupCard } from "./SetupCard";
+import { useRunningGame } from "./useRunningGame";
 
-function useRunningGame() {
-  const [game, setGame] = useState<{ appId: number; name: string } | null>(null);
-  useEffect(() => {
-    const read = () => {
-      const app = Router.MainRunningApp;
-      const next = app ? { appId: Number(app.appid), name: app.display_name } : null;
-      setGame((prev) =>
-        prev?.appId === next?.appId && prev?.name === next?.name ? prev : next
-      );
-    };
-    read();
-    const id = setInterval(read, 2000);
-    return () => clearInterval(id);
-  }, []);
-  return game;
-}
-
-const STORE_KEY = "haqgen.selectedApp";
-
-function loadSelected(): number | null {
-  try {
-    return parseStoredAppId(window.localStorage.getItem(STORE_KEY));
-  } catch {
-    return null;
-  }
-}
-
-function saveSelected(id: number | null) {
-  try {
-    if (id === null) window.localStorage.removeItem(STORE_KEY);
-    else window.localStorage.setItem(STORE_KEY, String(id));
-  } catch {
-  }
-}
+const KEY_GAME = "haqgen.selectedApp";
+const KEY_ADVANCED = "haqgen.showAdvanced";
+const KEY_MORE = "haqgen.showMore";
 
 function toast(body: string) {
   toaster.toast({ title: "HaqGen", body });
 }
 
+function Disclosure({ open, label, onToggle }: { open: boolean; label: string; onToggle: () => void }) {
+  return (
+    <PanelSectionRow>
+      <ButtonItem layout="below" onClick={onToggle}>
+        {open ? `Hide ${label}` : `Show ${label}`}
+      </ButtonItem>
+    </PanelSectionRow>
+  );
+}
+
 export function Panel() {
   const running = useRunningGame();
-  const [games, setGames] = useState<GameEntry[]>([]);
-  const [selectedId, setSelectedId] = useState<number | null>(loadSelected());
   const [state, setState] = useState<State | null>(null);
+  const [games, setGames] = useState<GameEntry[]>([]);
+  const [selectedId, setSelectedId] = useState<number | null>(() => parseStoredAppId(loadValue(KEY_GAME)));
   const [profile, setProfile] = useState<ProfileInfo | null>(null);
+  const [defaultPreset, setDefault] = useState("balanced");
   const [message, setMessage] = useState<string | null>(null);
-  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [restartFor, setRestartFor] = useState<number | null>(null);
+  const [showAdvanced, setShowAdvanced] = useState(() => loadValue(KEY_ADVANCED) === "1");
+  const [showMore, setShowMore] = useState(() => loadValue(KEY_MORE) === "1");
   const mounted = useRef(true);
 
   useEffect(() => {
@@ -102,56 +89,54 @@ export function Panel() {
 
   useEffect(() => {
     refresh();
-  }, [refresh]);
-
-  useEffect(() => {
-    let cancelled = false;
     listGames()
-      .then((g) => {
-        if (!cancelled) setGames(g);
-      })
+      .then((g) => mounted.current && setGames(g))
       .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+    getSettings()
+      .then((s) => mounted.current && setDefault(s.default_preset))
+      .catch(() => {});
+  }, [refresh]);
 
   const runningId = running?.appId;
   useEffect(() => {
     if (runningId !== undefined) setSelectedId(runningId);
+    setRestartFor(null);
   }, [runningId]);
 
-  useEffect(() => {
-    saveSelected(selectedId);
-  }, [selectedId]);
+  useEffect(() => saveValue(KEY_GAME, selectedId === null ? null : String(selectedId)), [selectedId]);
+  useEffect(() => saveValue(KEY_ADVANCED, showAdvanced ? "1" : "0"), [showAdvanced]);
+  useEffect(() => saveValue(KEY_MORE, showMore ? "1" : "0"), [showMore]);
 
   const options = useMemo(() => buildGameOptions(games, running), [games, running]);
   const game = useMemo(() => {
     if (selectedId === null) return null;
     const found = options.find((o) => o.data === selectedId);
-    if (!found) return null;
-    return { appId: selectedId, name: found.label.replace(/ \(running\)$/, "") };
+    return found ? { appId: selectedId, name: found.label.replace(/ \(running\)$/, "") } : null;
   }, [options, selectedId]);
-
   const appId = game?.appId;
   const gameName = game?.name;
-  useEffect(() => {
+  const gameRunning = appId !== undefined && appId === runningId;
+
+  const loadProfile = useCallback(async () => {
     if (appId === undefined || gameName === undefined) {
       setProfile(null);
       return;
     }
-    let cancelled = false;
-    getProfile(appId, gameName)
-      .then((p) => {
-        if (!cancelled) setProfile(p);
-      })
-      .catch((e) => {
-        if (!cancelled) setMessage(describeError(e));
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [appId, gameName, state?.profiles.length]);
+    try {
+      const p = await getProfile(appId, gameName);
+      if (mounted.current) setProfile(p);
+    } catch (e) {
+      if (mounted.current) setMessage(describeError(e));
+    }
+  }, [appId, gameName]);
+
+  useEffect(() => {
+    loadProfile();
+  }, [loadProfile]);
+
+  const needsRestart = () => {
+    if (gameRunning && appId !== undefined) setRestartFor(appId);
+  };
 
   const save = useCallback(
     async (s: Settings) => {
@@ -161,49 +146,60 @@ export function Panel() {
       if (!r.ok) setMessage(describeError(r.error));
       else {
         setMessage(null);
-        await refresh();
+        await loadProfile();
       }
     },
-    [appId, gameName, refresh]
+    [appId, gameName, loadProfile]
   );
 
   const debouncedSave = useMemo(() => debounce(save, 300), [save]);
   useEffect(() => () => debouncedSave.cancel(), [debouncedSave]);
 
-  const change = (s: Settings) => {
-    setProfile((p) => (p ? { ...p, ...s, exists: true } as ProfileInfo : p));
+  const changeInstant = (s: Settings) => {
+    setProfile((p) => (p ? ({ ...p, ...s } as ProfileInfo) : p));
     debouncedSave(s);
-  };
-
-  const onSetup = async () => {
-    const r = await setup();
-    if (!mounted.current) return;
-    setMessage(r.ok ? null : describeError(r.error, r.detail));
-    await refresh();
   };
 
   const onToggle = async (on: boolean) => {
     if (appId === undefined || gameName === undefined) return;
-    const r = on
-      ? await saveProfile(appId, gameName, { preset: "balanced" })
-      : await deleteProfile(appId, gameName);
+    const r = on ? await saveProfile(appId, gameName, {}) : await deleteProfile(appId, gameName);
     if (!mounted.current) return;
     if (!r.ok) setMessage(describeError(r.error));
+    needsRestart();
+    await loadProfile();
     await refresh();
   };
 
-  const onCopy = async () => {
+  const onProcessNames = async (names: string[]) => {
+    await save({ exe_names: names });
+    needsRestart();
+  };
+
+  const onDetect = async () => {
+    if (appId === undefined || !profile) return;
+    const r = await detectProcess(appId);
+    if (!mounted.current) return;
+    if (!r.ok || !r.exe) {
+      toast(describeError(r.error));
+      return;
+    }
+    const names = Array.from(new Set([...profile.exe_names, r.exe]));
+    await onProcessNames(names);
+    toast(`Found ${r.exe}.`);
+  };
+
+  const onCopyLaunchOption = async () => {
     if (appId === undefined || gameName === undefined) return;
     const text = await launchOption(appId, gameName);
     try {
       await navigator.clipboard.writeText(text);
-      toast("Launch option copied.");
+      toast("Launch option copied. Paste it in the game's Properties > Launch Options.");
     } catch {
       toast(`Copy failed. Use this launch option: ${text}`);
     }
   };
 
-  const onLog = async () => {
+  const onShowLog = async () => {
     const text = await readLog(200);
     showModal(
       <ConfirmModal strTitle="HaqGen log" strOKButtonText="Close" bAlertDialog>
@@ -217,6 +213,22 @@ export function Panel() {
   const onReset = async () => {
     const r = await resetDefaults();
     toast(r.ok ? "HaqGen profiles reset." : describeError(r.error));
+    needsRestart();
+    await loadProfile();
+    await refresh();
+  };
+
+  const onDefaultPreset = async (preset: string) => {
+    setDefault(preset);
+    const r = await setDefaultPreset(preset);
+    if (!r.ok) toast(describeError(r.error));
+  };
+
+  const onSetup = async () => {
+    const r = await setup();
+    if (!mounted.current) return;
+    setMessage(r.ok ? null : describeError(r.error, r.detail));
+    if (r.ok) toast("Setup complete.");
     await refresh();
   };
 
@@ -228,92 +240,82 @@ export function Panel() {
     );
   }
 
-  const ready = state.installed && state.dll_found;
+  const notice = message ?? state.error;
+  const banner = restartFor !== null && restartFor === appId && gameName ? restartBanner(gameName) : null;
+
+  if (!(state.installed && state.dll_found)) {
+    return (
+      <>
+        {notice && (
+          <PanelSection>
+            <PanelSectionRow>
+              <div style={{ color: "#ffb4a2", fontSize: 13 }}>{notice}</div>
+            </PanelSectionRow>
+          </PanelSection>
+        )}
+        <SetupCard state={state} onSetup={onSetup} />
+      </>
+    );
+  }
 
   return (
     <>
       <PanelSection title="HaqGen">
-        {(message || state.error) && (
+        {notice && (
           <PanelSectionRow>
-            <div style={{ color: "#ffb4a2" }}>{message ?? state.error}</div>
+            <div style={{ color: "#ffb4a2", fontSize: 13 }}>{notice}</div>
+          </PanelSectionRow>
+        )}
+        {banner && (
+          <PanelSectionRow>
+            <div style={{ fontSize: 13, fontWeight: 600 }}>⟳ {banner}</div>
           </PanelSectionRow>
         )}
         <PanelSectionRow>
-          <div style={{ fontSize: 12, opacity: 0.8 }}>
-            lsfg-vk: {state.installed ? "found" : "not found"} | Lossless Scaling DLL:{" "}
-            {state.dll_found ? "found" : "not found"}
-          </div>
+          <DropdownItem
+            label="Game"
+            rgOptions={options}
+            selectedOption={selectedId}
+            strDefaultLabel="Pick a game"
+            onChange={(o) => setSelectedId(o.data as number)}
+          />
         </PanelSectionRow>
-        {!ready && (
-          <PanelSectionRow>
-            <ButtonItem layout="below" onClick={onSetup}>
-              Set up
-            </ButtonItem>
-          </PanelSectionRow>
-        )}
-        {ready && (
-          <PanelSectionRow>
-            <DropdownItem
-              label="Game"
-              rgOptions={options}
-              selectedOption={selectedId}
-              strDefaultLabel="Pick a game"
-              onChange={(o) => setSelectedId(o.data as number)}
-            />
-          </PanelSectionRow>
-        )}
-        {ready && !game && (
-          <PanelSectionRow>Pick a game above to set up its profile.</PanelSectionRow>
-        )}
-        {ready && game && profile && (
-          <>
-            <PanelSectionRow>
-              <ToggleField
-                label={`Frame generation: ${game.name}`}
-                checked={profile.exists}
-                onChange={onToggle}
-              />
-            </PanelSectionRow>
-            {profile.exists && (
-              <>
-                {Object.entries(PRESET_LABELS).map(([key, label]) => (
-                  <PanelSectionRow key={key}>
-                    <ButtonItem layout="below" onClick={() => change({ preset: key } as Settings)}>
-                      {label}
-                    </ButtonItem>
-                  </PanelSectionRow>
-                ))}
-                <PanelSectionRow>
-                  <ButtonItem layout="below" onClick={onCopy}>
-                    Copy launch option
-                  </ButtonItem>
-                </PanelSectionRow>
-                <PanelSectionRow>
-                  <ToggleField
-                    label="Advanced"
-                    checked={showAdvanced}
-                    onChange={setShowAdvanced}
-                  />
-                </PanelSectionRow>
-                {showAdvanced && (
-                  <Advanced
-                    profile={profile}
-                    dllPath={state.dll_path}
-                    onChange={change}
-                    onShowLog={onLog}
-                    onReset={onReset}
-                  />
-                )}
-              </>
-            )}
-          </>
+        {!game && <PanelSectionRow>Pick a game to set up frame generation.</PanelSectionRow>}
+        {game && profile && (
+          <GameControls profile={profile} onToggle={onToggle} onChange={changeInstant} />
         )}
       </PanelSection>
-      {ready && (
-        <PanelSection title="Maintenance">
-          <RemoveData onDone={refresh} />
+      {game && profile?.exists && (
+        <PanelSection title="Advanced">
+          <Disclosure open={showAdvanced} label="advanced settings" onToggle={() => setShowAdvanced((v) => !v)} />
+          {showAdvanced && (
+            <Advanced
+              profile={profile}
+              gameRunning={gameRunning}
+              onChange={changeInstant}
+              onProcessNames={onProcessNames}
+              onDetect={onDetect}
+              onCopyLaunchOption={onCopyLaunchOption}
+            />
+          )}
         </PanelSection>
       )}
+      <PanelSection title="More">
+        <Disclosure open={showMore} label="more options" onToggle={() => setShowMore((v) => !v)} />
+        {showMore && (
+          <MoreSection
+            defaultPreset={defaultPreset}
+            onDefaultPreset={onDefaultPreset}
+            onShowLog={onShowLog}
+            onReset={onReset}
+            onRemoved={async () => {
+              needsRestart();
+              await loadProfile();
+              await refresh();
+            }}
+          />
+        )}
+      </PanelSection>
     </>
   );
 }

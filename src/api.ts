@@ -10,6 +10,7 @@ export interface State {
 
 export interface ProfileInfo {
   exists: boolean;
+  preset: string | null;
   name: string;
   multiplier: number;
   flow_scale: number;
@@ -50,3 +51,16 @@ export const removalPreview = callable<[], RemovalPreview>("removal_preview");
 export const removeAll = callable<[boolean], Result>("remove_all");
 export const readLog = callable<[number], string>("read_log");
 export const resetDefaults = callable<[], Result>("reset_defaults");
+
+export interface HealthResult {
+  ok: boolean;
+  summary: string;
+  details: string;
+}
+
+export const detectProcess = callable<[number], { ok: boolean; exe?: string; error?: string }>(
+  "detect_process"
+);
+export const getSettings = callable<[], { default_preset: string }>("get_settings");
+export const setDefaultPreset = callable<[string], Result>("set_default_preset");
+export const healthCheck = callable<[], HealthResult>("health_check");

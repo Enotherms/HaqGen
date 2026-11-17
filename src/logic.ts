@@ -11,6 +11,8 @@ const ERROR_TEXT: Record<string, string> = {
     "Automatic install is not available yet in this version. Install lsfg-vk manually, then press Set up again.",
   install_failed: "Installing lsfg-vk failed. Open the log for details.",
   not_confirmed: "Please confirm before removing data.",
+  not_running: "Start the game first, then press Detect.",
+  game_not_found: "This game's install folder was not found.",
 };
 
 export function describeError(err: unknown, detail?: string): string {

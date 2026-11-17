@@ -2,7 +2,7 @@ import { ButtonItem, ConfirmModal, PanelSectionRow, showModal } from "@decky/ui"
 import { toaster } from "@decky/api";
 import { useState } from "react";
 import { removalPreview, removeAll, RemovalPreview } from "../api";
-import { describeError } from "../logic";
+import { describeError, RESTART } from "../logic";
 
 function PreviewModal({
   preview,
@@ -85,7 +85,12 @@ export function RemoveData({ onDone }: { onDone: () => void }) {
 
   return (
     <PanelSectionRow>
-      <ButtonItem layout="below" disabled={busy} onClick={start}>
+      <ButtonItem
+        layout="below"
+        disabled={busy}
+        description={`Asks before deleting. ${RESTART.remove}`}
+        onClick={start}
+      >
         Remove plugin data
       </ButtonItem>
     </PanelSectionRow>
