@@ -77,7 +77,7 @@ export const PRESET_ORDER = ["battery", "balanced", "quality"] as const;
 
 export function frameLimitTip(multiplier: number, refreshHz = 90): string {
   const limit = Math.floor(refreshHz / multiplier);
-  return `Tip: set Steam's frame limit to ${limit} for ${multiplier}x on your ${refreshHz} Hz screen.`;
+  return `Tip: leave Steam's frame limit off. Cap the game at ${limit} FPS in its own settings for ${multiplier}x on your ${refreshHz} Hz screen, and turn off its own upscaler or frame generation.`;
 }
 
 export function summaryLine(p: {
@@ -143,4 +143,34 @@ export function creatableGames(
 ): { app_id: number; name: string }[] {
   const taken = new Set(profiles.map((p) => p.app_id));
   return games.filter((g) => !taken.has(g.app_id));
+}
+
+export interface LsBranch {
+  installed: boolean;
+  selected: string | null;
+  current: string | null;
+}
+
+const TARGET_BRANCH = "lsfg-vk";
+
+export function branchMessage(b: LsBranch, dllFound: boolean): { ok: boolean; text: string } {
+  if (dllFound && (!b.installed || b.current === TARGET_BRANCH)) {
+    return { ok: true, text: `Lossless Scaling found (${TARGET_BRANCH} branch)` };
+  }
+  if (!b.installed) return { ok: false, text: "Lossless Scaling not found. Install it from Steam." };
+  if (b.selected === TARGET_BRANCH) {
+    return { ok: false, text: "Lossless Scaling is switching to the lsfg-vk branch. Let Steam finish downloading it." };
+  }
+  return {
+    ok: false,
+    text: "Switch Lossless Scaling to the lsfg-vk beta branch: Library › Lossless Scaling › Properties › Betas › lsfg-vk.",
+  };
+}
+
+const LAYER_NAMES: Record<string, string> = { VkLayer_MAKO_render: "MAKO" };
+
+export function layersWarning(layers: string[]): string | null {
+  if (layers.length === 0) return null;
+  const names = layers.map((l) => LAYER_NAMES[l] ?? l.replace(/^VkLayer_/, ""));
+  return `Other Vulkan layers are installed (${names.join(", ")}). If frame generation misbehaves, disable them while using HaqGen.`;
 }

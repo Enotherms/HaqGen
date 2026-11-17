@@ -4,7 +4,17 @@ import { S } from "../strings";
 import { useInfo } from "./info";
 import { Hint } from "./theme";
 
-export function Advanced({ profile, onChange }: { profile: ProfileInfo; onChange: (s: Settings) => void }) {
+export function Advanced({
+  profile,
+  onChange,
+  gamescope,
+  onGamescope,
+}: {
+  profile: ProfileInfo;
+  onChange: (s: Settings) => void;
+  gamescope: boolean;
+  onGamescope: (on: boolean) => void;
+}) {
   const flowInfo = useInfo(S.flowScaleInfo);
   const perfInfo = useInfo(S.perfModelInfo);
   return (
@@ -21,6 +31,9 @@ export function Advanced({ profile, onChange }: { profile: ProfileInfo; onChange
           showValue
           onChange={(v) => onChange({ flow_scale: Math.round(v * 100) / 100 })}
         />
+      </PanelSectionRow>
+      <PanelSectionRow>
+        <ToggleField label={S.gamescope} description={S.gamescopeNote} checked={gamescope} onChange={onGamescope} />
       </PanelSectionRow>
       <PanelSectionRow>
         <ToggleField

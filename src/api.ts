@@ -7,6 +7,8 @@ export interface State {
   profiles: string[];
   launcher_installed: boolean;
   wrong_branch: boolean;
+  ls_branch: { installed: boolean; selected: string | null; current: string | null };
+  other_layers: string[];
   error: string | null;
 }
 
@@ -72,12 +74,14 @@ export interface ScopeResult {
   game: string | null;
   profile: ProfileInfo;
   enabled: boolean;
+  gamescope_compat: boolean;
   error: string | null;
 }
 
 export const getScope = callable<[number | null, string | null], ScopeResult>("get_scope");
 export const saveDefault = callable<[Settings], Result>("save_default");
 export const setEnabled = callable<[number | null, boolean], Result>("set_enabled");
+export const setGamescopeCompat = callable<[number | null, boolean], Result>("set_gamescope_compat");
 
 export interface ProfileEntry {
   app_id: number | null;

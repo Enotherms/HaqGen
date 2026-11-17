@@ -69,6 +69,7 @@ export function NowPlaying({ scope, running, saved, picker, onMultiplier, onChan
             onChange={(key) => onChange({ preset: key })}
           />
           <Hint>{frameLimitTip(p.multiplier)}</Hint>
+          <Hint>{S.overlayNote}</Hint>
         </>
       )}
       {running && scope.game && scope.scope === "default" && (

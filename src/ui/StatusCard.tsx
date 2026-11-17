@@ -2,7 +2,7 @@ import { ButtonItem, PanelSection, PanelSectionRow } from "@decky/ui";
 import { useState } from "react";
 import { FaCheckCircle, FaExclamationTriangle, FaTimesCircle } from "react-icons/fa";
 import { State } from "../api";
-import { RESTART } from "../logic";
+import { branchMessage, RESTART } from "../logic";
 import { S } from "../strings";
 
 const READY = "#65b9c9";
@@ -53,11 +53,10 @@ export function StatusCard({
             overflow: "hidden",
           }}
         >
-          <Row
-            first
-            state={state.dll_found ? "ready" : state.wrong_branch ? "warning" : "missing"}
-            text={state.dll_found ? S.dllFound : state.wrong_branch ? S.dllWrongBranch : S.dllMissing}
-          />
+          {(() => {
+            const b = branchMessage(state.ls_branch, state.dll_found);
+            return <Row first state={b.ok ? "ready" : state.ls_branch.installed ? "warning" : "missing"} text={b.text} />;
+          })()}
           <Row state={state.installed ? "ready" : "missing"} text={state.installed ? S.lsfgFound : S.lsfgMissing} />
           <Row
             state={state.launcher_installed ? "ready" : "missing"}

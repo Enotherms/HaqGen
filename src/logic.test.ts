@@ -75,13 +75,15 @@ describe("RESTART notes", () => {
 });
 
 describe("frameLimitTip", () => {
-  it("computes the limit for 90 Hz", () => {
-    expect(frameLimitTip(2)).toBe("Tip: set Steam's frame limit to 45 for 2x on your 90 Hz screen.");
-    expect(frameLimitTip(3)).toContain("limit to 30 for 3x");
-    expect(frameLimitTip(4)).toContain("limit to 22 for 4x");
+  it("points at the in-game limiter, not Steam's", () => {
+    expect(frameLimitTip(2)).toBe(
+      "Tip: leave Steam's frame limit off. Cap the game at 45 FPS in its own settings for 2x on your 90 Hz screen, and turn off its own upscaler or frame generation."
+    );
+    expect(frameLimitTip(3)).toContain("Cap the game at 30 FPS");
+    expect(frameLimitTip(4)).toContain("Cap the game at 22 FPS");
   });
   it("uses another refresh rate when given", () => {
-    expect(frameLimitTip(2, 60)).toContain("limit to 30 for 2x on your 60 Hz screen");
+    expect(frameLimitTip(2, 60)).toContain("Cap the game at 30 FPS in its own settings for 2x on your 60 Hz screen");
   });
 });
 
@@ -179,5 +181,33 @@ describe("creatableGames", () => {
   it("returns nothing when every game has a profile", () => {
     const profiles = games.map((g) => ({ app_id: g.app_id, game: g.name, label: g.name }));
     expect(creatableGames(games, profiles)).toEqual([]);
+  });
+});
+
+
+import { branchMessage, layersWarning } from "./logic";
+
+describe("branchMessage", () => {
+  it("describes each Lossless Scaling branch state", () => {
+    expect(branchMessage({ installed: false, selected: null, current: null }, false)).toEqual({ ok: false, text: "Lossless Scaling not found. Install it from Steam." });
+    expect(branchMessage({ installed: true, selected: "lsfg-vk", current: "lsfg-vk" }, true)).toEqual({ ok: true, text: "Lossless Scaling found (lsfg-vk branch)" });
+    expect(branchMessage({ installed: true, selected: "lsfg-vk", current: "default" }, false).text).toBe(
+      "Lossless Scaling is switching to the lsfg-vk branch. Let Steam finish downloading it."
+    );
+    expect(branchMessage({ installed: true, selected: "default", current: "default" }, false).text).toBe(
+      "Switch Lossless Scaling to the lsfg-vk beta branch: Library › Lossless Scaling › Properties › Betas › lsfg-vk."
+    );
+  });
+  it("trusts the DLL when Steam's record is missing", () => {
+    expect(branchMessage({ installed: false, selected: null, current: null }, true).ok).toBe(true);
+  });
+});
+
+describe("layersWarning", () => {
+  it("names other Vulkan layers in plain words", () => {
+    expect(layersWarning([])).toBeNull();
+    expect(layersWarning(["VkLayer_MAKO_render", "vkBasalt"])).toBe(
+      "Other Vulkan layers are installed (MAKO, vkBasalt). If frame generation misbehaves, disable them while using HaqGen."
+    );
   });
 });

@@ -16,13 +16,22 @@ import {
   saveProfile,
   ScopeResult,
   setEnabled,
+  setGamescopeCompat,
   setup,
   Settings,
   State,
 } from "../api";
 import { readCache, writeCache } from "../cache";
 import { copyText } from "../clipboard";
-import { creatableGames, debounce, describeError, editTarget, positionToMultiplier, restartBanner } from "../logic";
+import {
+  creatableGames,
+  debounce,
+  describeError,
+  editTarget,
+  layersWarning,
+  positionToMultiplier,
+  restartBanner,
+} from "../logic";
 import { S } from "../strings";
 import { Advanced } from "./Advanced";
 import { InfoContext } from "./info";
@@ -228,6 +237,16 @@ export function Panel() {
     await loadProfiles();
   };
 
+  const onGamescope = async (on: boolean) => {
+    setScope((cur) => (cur ? { ...cur, gamescope_compat: on } : cur));
+    const target = scope?.scope === "game" ? appId : null;
+    const r = await setGamescopeCompat(target, on);
+    if (!mounted.current) return;
+    if (!r.ok) setMessage(describeError(r.error));
+    needsRestart();
+    await loadScope();
+  };
+
   const onCopy = async () => {
     const text = await launchOption();
     toast((await copyText(text)) ? S.copied : S.copyFailed(text));
@@ -299,6 +318,7 @@ export function Panel() {
       <PanelSection>
         {infoToggle}
         {notice && <Notice text={notice} />}
+        {layersWarning(state.other_layers ?? []) && <Notice text={layersWarning(state.other_layers ?? [])!} />}
         {banner && <Notice strong text={`⟳ ${banner}`} />}
         {scope && (
           <NowPlaying
@@ -327,7 +347,14 @@ export function Panel() {
           <>
             <SectionHeader title={S.advanced} />
             <CollapsePill label={S.advanced} open={showAdvanced} onToggle={() => setShowAdvanced((v) => !v)} />
-            {showAdvanced && <Advanced profile={scope.profile} onChange={onChange} />}
+            {showAdvanced && (
+              <Advanced
+                profile={scope.profile}
+                onChange={onChange}
+                gamescope={scope.gamescope_compat}
+                onGamescope={onGamescope}
+              />
+            )}
           </>
         )}
         <SectionHeader title={S.more} />
