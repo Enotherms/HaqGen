@@ -20,6 +20,7 @@ def _paths() -> service.Paths:
         steam_roots=default_steam_roots(home),
         local_dir=home / ".local",
         log_path=Path(decky.DECKY_PLUGIN_LOG),
+        settings_path=Path(decky.DECKY_PLUGIN_SETTINGS_DIR) / "settings.json",
     )
 
 
@@ -66,6 +67,18 @@ class Plugin:
 
     async def read_log(self, max_lines: int = 200) -> str:
         return await asyncio.to_thread(service.read_log, _paths(), max_lines)
+
+    async def detect_process(self, app_id: int) -> dict:
+        return await asyncio.to_thread(service.detect_process, _paths(), app_id)
+
+    async def get_settings(self) -> dict:
+        return await asyncio.to_thread(service.get_settings, _paths())
+
+    async def set_default_preset(self, preset: str) -> dict:
+        return await asyncio.to_thread(service.set_default_preset, _paths(), preset)
+
+    async def health_check(self) -> dict:
+        return await asyncio.to_thread(service.health_check, _paths())
 
     async def reset_defaults(self) -> dict:
         return await asyncio.to_thread(service.reset_defaults, _paths())

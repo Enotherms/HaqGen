@@ -71,3 +71,17 @@ def list_installed_games(steam_roots: list[Path]) -> list[dict]:
     return sorted(
         ({"app_id": i, "name": n} for i, n in seen.items()), key=lambda g: g["name"].lower()
     )
+
+
+def game_install_dir(steam_roots: list[Path], app_id: int) -> Path | None:
+    for root in steam_roots:
+        for library in steam_library_paths(root):
+            acf = library / "steamapps" / f"appmanifest_{app_id}.acf"
+            try:
+                text = acf.read_text(encoding="utf-8")
+            except (OSError, UnicodeDecodeError):
+                continue
+            match = re.search(r'"installdir"\s+"((?:[^"\\]|\\.)*)"', text)
+            if match:
+                return library / "steamapps" / "common" / _unescape(match.group(1))
+    return None

@@ -258,3 +258,80 @@ def test_service_list_games(paths, tmp_path):
     d.mkdir(parents=True)
     (d / "appmanifest_4.acf").write_text('"AppState"\n{\n"appid" "4"\n"name" "Four"\n}\n', encoding="utf-8")
     assert service.list_games(paths) == [{"app_id": 4, "name": "Four"}]
+
+
+def _game(tmp_path, app_id=5, installdir="Five Dir"):
+    d = tmp_path / "steam" / "steamapps"
+    d.mkdir(parents=True, exist_ok=True)
+    (d / f"appmanifest_{app_id}.acf").write_text(
+        f'"AppState"\n{{\n"appid" "{app_id}"\n"name" "Five"\n"installdir" "{installdir}"\n}}\n',
+        encoding="utf-8",
+    )
+
+
+def test_detect_process_returns_exe(paths, tmp_path):
+    _game(tmp_path)
+    p = tmp_path / "proc" / "42"
+    p.mkdir(parents=True)
+    (p / "cmdline").write_bytes(b"Z:\\x\\steamapps\\common\\Five Dir\\five.exe\0")
+    r = service.detect_process(paths, 5, proc_root=tmp_path / "proc")
+    assert r == {"ok": True, "exe": "five.exe"}
+
+
+def test_detect_process_not_running(paths, tmp_path):
+    _game(tmp_path)
+    r = service.detect_process(paths, 5, proc_root=tmp_path / "proc")
+    assert r == {"ok": False, "error": "not_running"}
+
+
+def test_detect_process_game_not_found(paths, tmp_path):
+    assert service.detect_process(paths, 99, proc_root=tmp_path)["error"] == "game_not_found"
+
+
+def test_set_default_preset_rejects_unknown(paths):
+    assert service.set_default_preset(paths, "turbo")["ok"] is False
+    assert service.get_settings(paths)["default_preset"] == "balanced"
+
+
+def test_new_profile_uses_default_preset(paths):
+    assert service.set_default_preset(paths, "battery")["ok"] is True
+    service.save_profile(paths, 7, "G", {})
+    p = load_config(paths.config_path).profiles[0]
+    assert (p.flow_scale, p.performance_mode) == (0.5, True)
+    assert service.get_profile(paths, 8, "H")["preset"] == "battery"
+
+
+def test_profile_dict_reports_matching_preset(paths):
+    service.save_profile(paths, 7, "G", {"preset": "quality"})
+    assert service.get_profile(paths, 7, "G")["preset"] == "quality"
+
+
+def test_profile_dict_custom_is_none(paths):
+    service.save_profile(paths, 7, "G", {"preset": "quality", "multiplier": 3})
+    assert service.get_profile(paths, 7, "G")["preset"] is None
+
+
+def test_health_check_without_cli(paths):
+    r = service.health_check(paths)
+    assert r["ok"] is False and r["summary"] == "lsfg-vk is not installed."
+
+
+def test_health_check_reports_output(paths, tmp_path):
+    cli = tmp_path / "fakecli"
+    cli.write_text('#!/bin/sh\necho "result for $1"\n', encoding="utf-8")
+    cli.chmod(0o755)
+    paths.cli_path = cli
+    r = service.health_check(paths)
+    assert r["ok"] is True
+    assert "result for validate" in r["details"] and "result for healthcheck" in r["details"]
+    assert r["summary"] == "Everything looks good."
+
+
+def test_health_check_failure_summary(paths, tmp_path):
+    cli = tmp_path / "badcli"
+    cli.write_text('#!/bin/sh\necho "Unknown key" >&2\nexit 1\n', encoding="utf-8")
+    cli.chmod(0o755)
+    paths.cli_path = cli
+    r = service.health_check(paths)
+    assert r["ok"] is False and "Unknown key" in r["details"]
+    assert r["summary"].startswith("lsfg-vk found a problem")

@@ -11,8 +11,10 @@ from typing import Callable
 
 from .config import Config, ConfigError, Profile, load_config, save_config
 from .install import allowed_roots, install_lsfg_vk, lsfg_present
-from .lsfg_cli import validate_config
-from .locate import find_dll, list_installed_games
+from .lsfg_cli import healthcheck, validate_config
+from .locate import find_dll, game_install_dir, list_installed_games
+from .procs import find_game_exe
+from .settings import load_settings, save_settings
 from .manifest import execute_removal, load_manifest, plan_removal, replace_manifest
 from .presets import (
     PRESETS,
@@ -35,6 +37,10 @@ class Paths:
     local_dir: Path
     log_path: Path | None = None
     cli_path: Path | None = None
+    settings_path: Path | None = None
+
+    def settings_file(self) -> Path:
+        return self.settings_path or self.data_dir / "settings.json"
 
     def cli(self) -> Path:
         return self.cli_path or self.local_dir / "bin" / "lsfg-vk-cli"
@@ -73,9 +79,17 @@ def _installed(paths: Paths) -> bool:
     return lsfg_present(paths.local_dir)
 
 
+def _matching_preset(p: Profile) -> str | None:
+    for key, values in PRESETS.items():
+        if all(getattr(p, field) == value for field, value in values.items()):
+            return key
+    return None
+
+
 def _profile_dict(p: Profile, exists: bool) -> dict:
     return {
         "exists": exists,
+        "preset": _matching_preset(p),
         "name": p.name,
         "multiplier": p.multiplier,
         "flow_scale": p.flow_scale,
@@ -84,8 +98,9 @@ def _profile_dict(p: Profile, exists: bool) -> dict:
     }
 
 
-def _default_profile(app_id: int, game_name: str) -> Profile:
-    return apply_preset(Profile(name=profile_name(app_id, game_name)), "balanced")
+def _default_profile(paths: Paths, app_id: int, game_name: str) -> Profile:
+    preset = load_settings(paths.settings_file())["default_preset"]
+    return apply_preset(Profile(name=profile_name(app_id, game_name)), preset)
 
 
 def get_state(paths: Paths) -> dict:
@@ -139,11 +154,11 @@ def get_profile(paths: Paths, app_id: int, game_name: str) -> dict:
     try:
         cfg = load_config(paths.config_path)
     except ConfigError as exc:
-        return {**_profile_dict(_default_profile(app_id, game_name), False), "error": str(exc)}
+        return {**_profile_dict(_default_profile(paths, app_id, game_name), False), "error": str(exc)}
     for p in cfg.profiles:
         if p.name == name:
             return _profile_dict(p, True)
-    return _profile_dict(_default_profile(app_id, game_name), False)
+    return _profile_dict(_default_profile(paths, app_id, game_name), False)
 
 
 def save_profile(paths: Paths, app_id: int, game_name: str, settings: dict) -> dict:
@@ -151,7 +166,7 @@ def save_profile(paths: Paths, app_id: int, game_name: str, settings: dict) -> d
     try:
         cfg = load_config(paths.config_path)
         current = next((p for p in cfg.profiles if p.name == name), None)
-        profile = current or _default_profile(app_id, game_name)
+        profile = current or _default_profile(paths, app_id, game_name)
         if settings.get("preset"):
             profile = apply_preset(profile, str(settings["preset"]))
         if "multiplier" in settings or "flow_scale" in settings:
@@ -252,3 +267,42 @@ def delete_profile(paths: Paths, app_id: int, game_name: str) -> dict:
 
 def list_games(paths: Paths) -> list[dict]:
     return list_installed_games(paths.steam_roots)
+
+
+def get_settings(paths: Paths) -> dict:
+    return load_settings(paths.settings_file())
+
+
+def set_default_preset(paths: Paths, preset: str) -> dict:
+    if preset not in PRESETS:
+        return _fail(f"Unknown preset: {preset}")
+    try:
+        data = load_settings(paths.settings_file())
+        data["default_preset"] = preset
+        save_settings(paths.settings_file(), data)
+    except OSError as exc:
+        return _fail(str(exc))
+    return {"ok": True}
+
+
+def detect_process(paths: Paths, app_id: int, proc_root: Path = Path("/proc")) -> dict:
+    install_dir = game_install_dir(paths.steam_roots, app_id)
+    if install_dir is None:
+        return _fail("game_not_found")
+    exe = find_game_exe(install_dir, proc_root)
+    if exe is None:
+        return _fail("not_running")
+    return {"ok": True, "exe": exe}
+
+
+def health_check(paths: Paths) -> dict:
+    cli = paths.cli()
+    if not cli.exists():
+        return {"ok": False, "summary": "lsfg-vk is not installed.", "details": ""}
+    results = [("validate", validate_config(cli, paths.config_path)), ("healthcheck", healthcheck(cli))]
+    details = "\n\n".join(
+        f"$ lsfg-vk-cli {name}\n{(r.stdout + r.stderr).strip()}" for name, r in results
+    )
+    ok = all(r.ok for _, r in results)
+    summary = "Everything looks good." if ok else "lsfg-vk found a problem. See details below."
+    return {"ok": ok, "summary": summary, "details": details}

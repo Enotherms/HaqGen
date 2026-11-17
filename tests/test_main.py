@@ -13,6 +13,7 @@ def plugin_module(tmp_path, monkeypatch):
     fake.DECKY_USER_HOME = str(tmp_path / "home")
     fake.DECKY_PLUGIN_RUNTIME_DIR = str(tmp_path / "runtime")
     fake.DECKY_PLUGIN_LOG = str(tmp_path / "plugin.log")
+    fake.DECKY_PLUGIN_SETTINGS_DIR = str(tmp_path / "settings")
     fake.logger = logging.getLogger("haqgen-test")
     monkeypatch.setitem(sys.modules, "decky", fake)
     sys.modules.pop("main", None)
@@ -75,3 +76,11 @@ def test_setup_failure_is_logged_with_detail(plugin_module, tmp_path, caplog, mo
 
 def test_list_games_method(plugin_module):
     assert asyncio.run(plugin_module.Plugin().list_games()) == []
+
+
+def test_new_methods_exist_and_run(plugin_module):
+    p = plugin_module.Plugin()
+    assert asyncio.run(p.get_settings())["default_preset"] == "balanced"
+    assert asyncio.run(p.set_default_preset("quality"))["ok"] is True
+    assert asyncio.run(p.health_check())["ok"] is False
+    assert asyncio.run(p.detect_process(1))["ok"] is False
