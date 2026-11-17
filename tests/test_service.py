@@ -46,13 +46,8 @@ def fake_fetch(url, dest):
             tar.addfile(info, io.BytesIO(data))
 
 
-def test_launch_option_format():
-    assert service.launch_option(42, "Game") == "LSFGVK_PROFILE='HaqGen 42 Game' %command%"
-
-
-def test_launch_option_escapes_single_quote():
-    out = service.launch_option(42, "Bob's Game")
-    assert out == "LSFGVK_PROFILE='HaqGen 42 Bob'\\''s Game' %command%"
+def test_launch_option_is_universal():
+    assert service.launch_option() == "~/.local/bin/haqgen-launch %command%"
 
 
 def test_get_state_without_dll(paths):
@@ -141,9 +136,11 @@ def test_removal_preview_lists_exact_paths(paths, tmp_path):
             str(paths.local_dir / "bin" / "lsfg-vk-cli"),
             str(paths.local_dir / "lib" / "liblsfg-vk-layer.so"),
             str(paths.local_dir / LAYER),
+            str(paths.local_dir / "bin" / "haqgen-launch"),
+            str(paths.haqgen_config() / "games"),
         ]
     )
-    assert pv["profiles"] == ["HaqGen 7 G"]
+    assert pv["profiles"] == ["HaqGen Default", "HaqGen 7 G"]
     assert pv["refused"] == []
 
 
@@ -199,7 +196,7 @@ def test_setup_uses_existing_lsfg_vk_without_installing_or_claiming(paths, tmp_p
         f.write_text("other tool")
     r = service.setup(paths, fetch=None, url=None)
     assert r["ok"] is True, r
-    assert load_manifest(paths.manifest_path).paths == []
+    assert load_manifest(paths.manifest_path).paths == [str(paths.local_dir / "bin" / "haqgen-launch")]
     assert (paths.local_dir / "bin" / "lsfg-vk-cli").read_text() == "other tool"
     service.remove_all(paths, confirmed=True)
     assert (paths.local_dir / "bin" / "lsfg-vk-cli").read_text() == "other tool"
@@ -342,3 +339,94 @@ def test_preset_keeps_multiplier_and_still_matches(paths):
     service.save_profile(paths, 7, "G", {"preset": "quality"})
     r = service.get_profile(paths, 7, "G")
     assert (r["multiplier"], r["flow_scale"], r["preset"]) == (3, 1.0, "quality")
+
+
+def games_dir(paths):
+    return paths.haqgen_config() / "games"
+
+
+def test_setup_installs_launcher(paths, tmp_path):
+    add_dll(tmp_path)
+    assert service.setup(paths, fetch=fake_fetch, url="u")["ok"] is True
+    assert (paths.local_dir / "bin" / "haqgen-launch").exists()
+    assert service.get_state(paths)["launcher_installed"] is True
+
+
+def test_setup_installs_launcher_when_lsfg_already_present(paths, tmp_path):
+    add_dll(tmp_path)
+    for rel in ("bin/lsfg-vk-cli", "lib/liblsfg-vk-layer.so", LAYER):
+        f = paths.local_dir / rel
+        f.parent.mkdir(parents=True, exist_ok=True)
+        f.write_text("other")
+    assert service.setup(paths)["ok"] is True
+    assert (paths.local_dir / "bin" / "haqgen-launch").exists()
+
+
+def test_scope_without_game_is_default(paths):
+    r = service.get_scope(paths, None, None)
+    assert r["scope"] == "default" and r["game"] is None and r["enabled"] is True
+    assert r["profile"]["name"] == "HaqGen Default"
+
+
+def test_scope_game_without_profile_uses_default(paths):
+    r = service.get_scope(paths, 7, "G")
+    assert r["scope"] == "default" and r["game"] == "G"
+
+
+def test_scope_game_with_own_profile(paths):
+    service.save_profile(paths, 7, "G", {"multiplier": 3})
+    r = service.get_scope(paths, 7, "G")
+    assert r["scope"] == "game" and r["profile"]["multiplier"] == 3
+    assert (games_dir(paths) / "7.profile").read_text().strip() == "HaqGen 7 G"
+
+
+def test_new_game_profile_copies_default(paths):
+    service.save_default(paths, {"multiplier": 4, "preset": "battery"})
+    service.save_profile(paths, 7, "G", {})
+    p = service.get_scope(paths, 7, "G")["profile"]
+    assert (p["multiplier"], p["flow_scale"], p["performance_mode"]) == (4, 0.5, True)
+
+
+def test_save_default_updates_only_default(paths):
+    service.save_profile(paths, 7, "G", {"multiplier": 2})
+    service.save_default(paths, {"multiplier": 3})
+    assert service.get_scope(paths, None, None)["profile"]["multiplier"] == 3
+    assert service.get_scope(paths, 7, "G")["profile"]["multiplier"] == 2
+
+
+def test_delete_profile_removes_markers(paths):
+    service.save_profile(paths, 7, "G", {})
+    service.set_enabled(paths, 7, False)
+    service.delete_profile(paths, 7, "G")
+    assert not (games_dir(paths) / "7.profile").exists()
+    assert not (games_dir(paths) / "7.off").exists()
+    assert service.get_scope(paths, 7, "G")["scope"] == "default"
+
+
+def test_set_enabled_markers(paths):
+    service.set_enabled(paths, None, False)
+    assert (games_dir(paths) / "default.off").exists()
+    assert service.get_scope(paths, None, None)["enabled"] is False
+    service.set_enabled(paths, None, True)
+    assert not (games_dir(paths) / "default.off").exists()
+    service.save_profile(paths, 7, "G", {})
+    service.set_enabled(paths, 7, False)
+    assert service.get_scope(paths, 7, "G")["enabled"] is False
+
+
+def test_reset_defaults_removes_markers(paths):
+    service.save_profile(paths, 7, "G", {})
+    service.set_enabled(paths, None, False)
+    service.reset_defaults(paths)
+    assert not any(games_dir(paths).iterdir())
+
+
+def test_remove_all_removes_launcher_and_markers(paths, tmp_path):
+    add_dll(tmp_path)
+    service.setup(paths, fetch=fake_fetch, url="u")
+    service.save_profile(paths, 7, "G", {})
+    r = service.remove_all(paths, confirmed=True)
+    assert r["ok"] is True, r
+    assert not (paths.local_dir / "bin" / "haqgen-launch").exists()
+    assert not games_dir(paths).exists()
+    assert [p.name for p in load_config(paths.config_path).profiles] == []

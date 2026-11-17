@@ -34,7 +34,14 @@ def test_get_state_runs_through_thread(plugin_module, tmp_path):
 
 def test_launch_option_method(plugin_module):
     p = plugin_module.Plugin()
-    assert asyncio.run(p.launch_option(5, "G")) == "LSFGVK_PROFILE='HaqGen 5 G' %command%"
+    assert asyncio.run(p.launch_option()) == "~/.local/bin/haqgen-launch %command%"
+
+
+def test_scope_methods(plugin_module):
+    p = plugin_module.Plugin()
+    assert asyncio.run(p.get_scope(None, None))["scope"] == "default"
+    assert asyncio.run(p.save_default({"multiplier": 3}))["ok"] is True
+    assert asyncio.run(p.set_enabled(None, False))["ok"] is True
 
 
 def test_remove_all_needs_confirmation(plugin_module):

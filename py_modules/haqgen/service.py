@@ -15,7 +15,8 @@ from .lsfg_cli import healthcheck, validate_config
 from .locate import find_dll, game_install_dir, list_installed_games
 from .procs import find_game_exe
 from .settings import load_settings, save_settings
-from .manifest import execute_removal, load_manifest, plan_removal, replace_manifest
+from .launcher import DEFAULT_PROFILE, install_launcher, launcher_path
+from .manifest import execute_removal, load_manifest, plan_removal, record_paths, replace_manifest
 from .presets import (
     PRESETS,
     apply_preset,
@@ -38,6 +39,13 @@ class Paths:
     log_path: Path | None = None
     cli_path: Path | None = None
     settings_path: Path | None = None
+    haqgen_dir: Path | None = None
+
+    def haqgen_config(self) -> Path:
+        return self.haqgen_dir or self.config_path.parent.parent / "haqgen"
+
+    def games_dir(self) -> Path:
+        return self.haqgen_config() / "games"
 
     def settings_file(self) -> Path:
         return self.settings_path or self.data_dir / "settings.json"
@@ -98,9 +106,60 @@ def _profile_dict(p: Profile, exists: bool) -> dict:
     }
 
 
-def _default_profile(paths: Paths, app_id: int, game_name: str) -> Profile:
+def _base_default() -> Profile:
+    return apply_preset(Profile(name=DEFAULT_PROFILE), "balanced")
+
+
+def _find(cfg: Config, name: str) -> Profile | None:
+    return next((p for p in cfg.profiles if p.name == name), None)
+
+
+def _default_profile(paths: Paths, app_id: int, game_name: str, cfg: Config | None = None) -> Profile:
+    name = profile_name(app_id, game_name)
+    default = _find(cfg, DEFAULT_PROFILE) if cfg is not None else None
+    if default is not None:
+        return dataclasses.replace(default, name=name, active_in=[], extra=dict(default.extra))
     preset = load_settings(paths.settings_file())["default_preset"]
-    return apply_preset(Profile(name=profile_name(app_id, game_name)), preset)
+    return apply_preset(Profile(name=name), preset)
+
+
+def _apply_settings(profile: Profile, settings: dict) -> Profile:
+    if settings.get("preset"):
+        profile = apply_preset(profile, str(settings["preset"]))
+    if "multiplier" in settings or "flow_scale" in settings:
+        m, f = clamp_settings(
+            settings.get("multiplier", profile.multiplier),
+            settings.get("flow_scale", profile.flow_scale),
+        )
+        profile = dataclasses.replace(profile, multiplier=m, flow_scale=f)
+    if "performance_mode" in settings:
+        profile = dataclasses.replace(profile, performance_mode=bool(settings["performance_mode"]))
+    if "exe_names" in settings:
+        names = [str(n).strip() for n in settings["exe_names"] if str(n).strip()]
+        profile = dataclasses.replace(profile, active_in=names)
+    return profile
+
+
+def _roots(paths: Paths) -> list[Path]:
+    return allowed_roots(paths.data_dir, paths.local_dir) + [paths.haqgen_config()]
+
+
+def _games(paths: Paths) -> Path:
+    d = paths.games_dir()
+    if not d.exists():
+        d.mkdir(parents=True)
+        record_paths(paths.manifest_path, [d])
+    return d
+
+
+def _marker(paths: Paths, app_id: int | None, suffix: str) -> Path:
+    return paths.games_dir() / f"{'default' if app_id is None else int(app_id)}.{suffix}"
+
+
+def _write_marker(path: Path, text: str) -> None:
+    tmp = path.with_name(path.name + ".tmp")
+    tmp.write_text(text, encoding="utf-8")
+    os.replace(tmp, path)
 
 
 def get_state(paths: Paths) -> dict:
@@ -110,6 +169,7 @@ def get_state(paths: Paths) -> dict:
         "dll_found": dll is not None,
         "dll_path": str(dll) if dll else None,
         "profiles": [],
+        "launcher_installed": launcher_path(paths.local_dir).exists(),
         "error": None,
     }
     try:
@@ -138,8 +198,16 @@ def setup(
         if not result.ok:
             return {"ok": False, "error": "install_failed", "detail": result.error}
     try:
+        install_launcher(paths.local_dir, paths.manifest_path)
+    except FileExistsError as exc:
+        return {"ok": False, "error": "launcher_conflict", "detail": str(exc)}
+    except OSError as exc:
+        return _fail(str(exc))
+    try:
         cfg = load_config(paths.config_path)
         cfg = dataclasses.replace(cfg, dll=str(dll))
+        if _find(cfg, DEFAULT_PROFILE) is None:
+            cfg = upsert_profile(cfg, _base_default())
         save_config(paths.config_path, cfg)
     except (ConfigError, OSError) as exc:
         return _fail(str(exc))
@@ -158,37 +226,24 @@ def get_profile(paths: Paths, app_id: int, game_name: str) -> dict:
     for p in cfg.profiles:
         if p.name == name:
             return _profile_dict(p, True)
-    return _profile_dict(_default_profile(paths, app_id, game_name), False)
+    return _profile_dict(_default_profile(paths, app_id, game_name, cfg), False)
 
 
 def save_profile(paths: Paths, app_id: int, game_name: str, settings: dict) -> dict:
     name = profile_name(app_id, game_name)
     try:
         cfg = load_config(paths.config_path)
-        current = next((p for p in cfg.profiles if p.name == name), None)
-        profile = current or _default_profile(paths, app_id, game_name)
-        if settings.get("preset"):
-            profile = apply_preset(profile, str(settings["preset"]))
-        if "multiplier" in settings or "flow_scale" in settings:
-            m, f = clamp_settings(
-                settings.get("multiplier", profile.multiplier),
-                settings.get("flow_scale", profile.flow_scale),
-            )
-            profile = dataclasses.replace(profile, multiplier=m, flow_scale=f)
-        if "performance_mode" in settings:
-            profile = dataclasses.replace(profile, performance_mode=bool(settings["performance_mode"]))
-        if "exe_names" in settings:
-            names = [str(n).strip() for n in settings["exe_names"] if str(n).strip()]
-            profile = dataclasses.replace(profile, active_in=names)
+        current = _find(cfg, name)
+        profile = _apply_settings(current or _default_profile(paths, app_id, game_name, cfg), settings)
         save_config(paths.config_path, upsert_profile(cfg, profile))
+        _write_marker(_games(paths) / f"{int(app_id)}.profile", name + "\n")
     except (ConfigError, ValueError, OSError) as exc:
         return _fail(str(exc))
     return {"ok": True, "profile": _profile_dict(profile, True)}
 
 
-def launch_option(app_id: int, game_name: str) -> str:
-    quoted = profile_name(app_id, game_name).replace("'", "'\\''")
-    return f"LSFGVK_PROFILE='{quoted}' %command%"
+def launch_option() -> str:
+    return "~/.local/bin/haqgen-launch %command%"
 
 
 def _haqgen_profile_names(paths: Paths) -> list[str]:
@@ -199,7 +254,7 @@ def _haqgen_profile_names(paths: Paths) -> list[str]:
 
 
 def removal_preview(paths: Paths) -> dict:
-    plan = plan_removal(load_manifest(paths.manifest_path), allowed_roots(paths.data_dir, paths.local_dir))
+    plan = plan_removal(load_manifest(paths.manifest_path), _roots(paths))
     return {
         "delete": [str(p) for p in plan.to_delete],
         "missing": [str(p) for p in plan.missing],
@@ -219,7 +274,7 @@ def remove_all(paths: Paths, confirmed: bool) -> dict:
     if not confirmed:
         return _fail("not_confirmed")
     manifest = load_manifest(paths.manifest_path)
-    plan = plan_removal(manifest, allowed_roots(paths.data_dir, paths.local_dir))
+    plan = plan_removal(manifest, _roots(paths))
     report = execute_removal(plan)
     keep = [p for p, _ in plan.refused] + [str(p) for p, _ in report.failed]
     replace_manifest(paths.manifest_path, keep)
@@ -236,8 +291,17 @@ def remove_all(paths: Paths, confirmed: bool) -> dict:
     }
 
 
+def _clear_markers(paths: Paths) -> None:
+    d = paths.games_dir()
+    if d.is_dir():
+        for f in d.iterdir():
+            if f.is_file() and not f.is_symlink():
+                f.unlink()
+
+
 def reset_defaults(paths: Paths) -> dict:
     try:
+        _clear_markers(paths)
         if paths.config_path.exists():
             _drop_haqgen_profiles(paths)
     except (ConfigError, OSError) as exc:
@@ -260,6 +324,8 @@ def delete_profile(paths: Paths, app_id: int, game_name: str) -> dict:
         if paths.config_path.exists():
             cfg = load_config(paths.config_path)
             save_config(paths.config_path, remove_profile(cfg, profile_name(app_id, game_name)))
+        for suffix in ("profile", "off"):
+            _marker(paths, app_id, suffix).unlink(missing_ok=True)
     except (ConfigError, OSError) as exc:
         return _fail(str(exc))
     return {"ok": True}
@@ -306,3 +372,48 @@ def health_check(paths: Paths) -> dict:
     ok = all(r.ok for _, r in results)
     summary = "Everything looks good." if ok else "lsfg-vk found a problem. See details below."
     return {"ok": ok, "summary": summary, "details": details}
+
+
+def get_scope(paths: Paths, app_id: int | None, game_name: str | None) -> dict:
+    try:
+        cfg = load_config(paths.config_path)
+    except ConfigError as exc:
+        cfg, error = Config(), str(exc)
+    else:
+        error = None
+    own = None
+    if app_id is not None and game_name:
+        own = _find(cfg, profile_name(app_id, game_name))
+    if own is not None:
+        scope, profile, marker_id = "game", own, app_id
+    else:
+        scope, profile, marker_id = "default", _find(cfg, DEFAULT_PROFILE) or _base_default(), None
+    return {
+        "scope": scope,
+        "game": game_name if app_id is not None else None,
+        "profile": _profile_dict(profile, True),
+        "enabled": not _marker(paths, marker_id, "off").exists(),
+        "error": error,
+    }
+
+
+def save_default(paths: Paths, settings: dict) -> dict:
+    try:
+        cfg = load_config(paths.config_path)
+        profile = _apply_settings(_find(cfg, DEFAULT_PROFILE) or _base_default(), settings)
+        save_config(paths.config_path, upsert_profile(cfg, profile))
+    except (ConfigError, ValueError, OSError) as exc:
+        return _fail(str(exc))
+    return {"ok": True, "profile": _profile_dict(profile, True)}
+
+
+def set_enabled(paths: Paths, app_id: int | None, enabled: bool) -> dict:
+    try:
+        marker = _games(paths) / _marker(paths, app_id, "off").name
+        if enabled:
+            marker.unlink(missing_ok=True)
+        else:
+            _write_marker(marker, "")
+    except OSError as exc:
+        return _fail(str(exc))
+    return {"ok": True}

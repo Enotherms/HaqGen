@@ -19,6 +19,7 @@ def _paths() -> service.Paths:
         data_dir=runtime,
         steam_roots=default_steam_roots(home),
         local_dir=home / ".local",
+        haqgen_dir=home / ".config" / "haqgen",
         log_path=Path(decky.DECKY_PLUGIN_LOG),
         settings_path=Path(decky.DECKY_PLUGIN_SETTINGS_DIR) / "settings.json",
     )
@@ -56,8 +57,17 @@ class Plugin:
     async def delete_profile(self, app_id: int, game_name: str) -> dict:
         return await asyncio.to_thread(service.delete_profile, _paths(), app_id, game_name)
 
-    async def launch_option(self, app_id: int, game_name: str) -> str:
-        return service.launch_option(app_id, game_name)
+    async def launch_option(self) -> str:
+        return service.launch_option()
+
+    async def get_scope(self, app_id, game_name) -> dict:
+        return await asyncio.to_thread(service.get_scope, _paths(), app_id, game_name)
+
+    async def save_default(self, settings: dict) -> dict:
+        return await asyncio.to_thread(service.save_default, _paths(), settings)
+
+    async def set_enabled(self, app_id, enabled: bool) -> dict:
+        return await asyncio.to_thread(service.set_enabled, _paths(), app_id, enabled)
 
     async def removal_preview(self) -> dict:
         return await asyncio.to_thread(service.removal_preview, _paths())
