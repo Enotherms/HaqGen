@@ -27,6 +27,7 @@ export function describeError(err: unknown, detail?: string): string {
 export interface Debounced<A extends unknown[]> {
   (...args: A): void;
   cancel(): void;
+  flush(): void;
 }
 
 export function debounce<A extends unknown[]>(
@@ -34,16 +35,27 @@ export function debounce<A extends unknown[]>(
   ms: number
 ): Debounced<A> {
   let timer: ReturnType<typeof setTimeout> | undefined;
+  let pending: A | undefined;
+  const run = () => {
+    const args = pending;
+    timer = undefined;
+    pending = undefined;
+    if (args) fn(...args);
+  };
   const wrapped = ((...args: A) => {
     if (timer !== undefined) clearTimeout(timer);
-    timer = setTimeout(() => {
-      timer = undefined;
-      fn(...args);
-    }, ms);
+    pending = args;
+    timer = setTimeout(run, ms);
   }) as Debounced<A>;
   wrapped.cancel = () => {
     if (timer !== undefined) clearTimeout(timer);
     timer = undefined;
+    pending = undefined;
+  };
+  wrapped.flush = () => {
+    if (timer === undefined) return;
+    clearTimeout(timer);
+    run();
   };
   return wrapped;
 }

@@ -94,6 +94,7 @@ export function Panel() {
   const [showAdvanced, setShowAdvanced] = useState(() => loadValue(KEY_ADVANCED) === "1");
   const [showMore, setShowMore] = useState(() => loadValue(KEY_MORE) === "1");
   const mounted = useRef(true);
+  const loaded = useRef<ScopeResult | null>(null);
 
   useEffect(() => {
     mounted.current = true;
@@ -119,6 +120,7 @@ export function Panel() {
   const loadScope = useCallback(async () => {
     try {
       const r = await getScope(appId, gameName);
+      loaded.current = r;
       writeCache({ profile: { appId: appId ?? DEFAULT_KEY, value: r } });
       if (mounted.current) setScope(r);
     } catch (e) {
@@ -165,23 +167,23 @@ export function Panel() {
 
   const saveActive = useCallback(
     async (s: Settings) => {
-      const own = scope?.scope === "game" && appId !== null && gameName !== null;
+      const own = loaded.current?.scope === "game" && appId !== null && gameName !== null;
       const r = own ? await saveProfile(appId!, gameName!, s) : await saveDefault(s);
       if (!mounted.current) return;
       setMessage(r.ok ? null : describeError(r.error));
       if (r.ok) setSavedAt(Date.now());
       await loadScope();
     },
-    [scope?.scope, appId, gameName, loadScope]
+    [appId, gameName, loadScope]
   );
   const debouncedSave = useMemo(() => debounce(saveActive, 300), [saveActive]);
-  useEffect(() => () => debouncedSave.cancel(), [debouncedSave]);
+  useEffect(() => () => debouncedSave.flush(), [debouncedSave]);
 
   const applyMultiplier = useCallback(
     async (position: number) => {
       const multiplier = positionToMultiplier(position);
-      const target = scope?.scope === "game" ? appId : null;
-      const wasOn = scope?.enabled ?? true;
+      const target = loaded.current?.scope === "game" ? appId : null;
+      const wasOn = loaded.current?.enabled ?? true;
       const r = await setEnabled(target, multiplier !== null);
       if (multiplier !== null) await saveActive({ multiplier });
       if (!mounted.current) return;
@@ -189,10 +191,10 @@ export function Panel() {
       if (wasOn !== (multiplier !== null)) needsRestart();
       await loadScope();
     },
-    [scope?.scope, scope?.enabled, appId, saveActive, needsRestart, loadScope]
+    [appId, saveActive, needsRestart, loadScope]
   );
   const debouncedMultiplier = useMemo(() => debounce(applyMultiplier, 300), [applyMultiplier]);
-  useEffect(() => () => debouncedMultiplier.cancel(), [debouncedMultiplier]);
+  useEffect(() => () => debouncedMultiplier.flush(), [debouncedMultiplier]);
 
   const onMultiplier = (position: number) => {
     const multiplier = positionToMultiplier(position);

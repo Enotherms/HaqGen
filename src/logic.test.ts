@@ -211,3 +211,25 @@ describe("layersWarning", () => {
     );
   });
 });
+
+describe("debounce flush", () => {
+  it("runs a pending call immediately with the latest value", () => {
+    vi.useFakeTimers();
+    const fn = vi.fn();
+    const d = debounce(fn, 300);
+    d(2);
+    d(0);
+    d.flush();
+    expect(fn).toHaveBeenCalledTimes(1);
+    expect(fn).toHaveBeenCalledWith(0);
+    vi.advanceTimersByTime(1000);
+    expect(fn).toHaveBeenCalledTimes(1);
+    vi.useRealTimers();
+  });
+  it("does nothing when no call is pending", () => {
+    const fn = vi.fn();
+    const d = debounce(fn, 300);
+    d.flush();
+    expect(fn).not.toHaveBeenCalled();
+  });
+});
