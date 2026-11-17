@@ -109,3 +109,21 @@ def execute_removal(plan: RemovalPlan) -> RemovalReport:
         except OSError as exc:
             report.failed.append((path, str(exc)))
     return report
+
+
+def replace_manifest(manifest_path: Path, paths: list[str]) -> None:
+    manifest_path = Path(manifest_path)
+    manifest_path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = manifest_path.with_name(manifest_path.name + ".tmp")
+    try:
+        with open(tmp, "w", encoding="utf-8") as fh:
+            json.dump({"version": 1, "paths": list(paths)}, fh, indent=2)
+            fh.flush()
+            os.fsync(fh.fileno())
+        os.replace(tmp, manifest_path)
+    except BaseException:
+        try:
+            tmp.unlink()
+        except OSError:
+            pass
+        raise

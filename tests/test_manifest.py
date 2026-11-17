@@ -112,3 +112,12 @@ def test_execute_rechecks_symlink_swapped_after_planning(tmp_path):
     report = execute_removal(plan)
     assert (victim / "f").exists()
     assert report.deleted == []
+
+
+def test_replace_manifest_overwrites_paths(tmp_path):
+    from haqgen.manifest import replace_manifest
+
+    mp = tmp_path / "m.json"
+    record_paths(mp, [tmp_path / "a", tmp_path / "b"])
+    replace_manifest(mp, [str(tmp_path / "b")])
+    assert load_manifest(mp).paths == [str(tmp_path / "b")]
