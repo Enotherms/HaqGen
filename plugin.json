@@ -1,0 +1,14 @@
+{
+  "name": "HaqGen",
+  "author": "Enotherms",
+  "flags": [],
+  "api_version": 1,
+  "publish": {
+    "tags": [
+      "frame-generation",
+      "lossless-scaling"
+    ],
+    "description": "Easy setup and per-game profiles for Lossless Scaling frame generation (lsfg-vk).",
+    "image": "https://opengraph.githubassets.com/1/Enotherms/HaqGen"
+  }
+}
