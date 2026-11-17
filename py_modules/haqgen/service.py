@@ -214,3 +214,13 @@ def read_log(paths: Paths, max_lines: int = 200) -> str:
             return "\n".join(line.rstrip("\n") for line in deque(fh, maxlen=max_lines))
     except OSError:
         return ""
+
+
+def delete_profile(paths: Paths, app_id: int, game_name: str) -> dict:
+    try:
+        if paths.config_path.exists():
+            cfg = load_config(paths.config_path)
+            save_config(paths.config_path, remove_profile(cfg, profile_name(app_id, game_name)))
+    except (ConfigError, OSError) as exc:
+        return _fail(str(exc))
+    return {"ok": True}

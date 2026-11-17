@@ -39,3 +39,8 @@ def test_launch_option_method(plugin_module):
 def test_remove_all_needs_confirmation(plugin_module):
     p = plugin_module.Plugin()
     assert asyncio.run(p.remove_all(False))["error"] == "not_confirmed"
+
+
+def test_delete_profile_method(plugin_module):
+    p = plugin_module.Plugin()
+    assert asyncio.run(p.delete_profile(1, "G"))["ok"] is True

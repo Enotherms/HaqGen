@@ -162,3 +162,16 @@ def test_read_log_returns_tail(paths):
 
 def test_read_log_missing_file_is_empty(paths):
     assert service.read_log(paths) == ""
+
+
+def test_delete_profile_removes_only_that_game(paths):
+    save_config(paths.config_path, Config(profiles=[Profile(name="Mine")]))
+    service.save_profile(paths, 7, "G", {})
+    service.save_profile(paths, 8, "H", {})
+    r = service.delete_profile(paths, 7, "G")
+    assert r["ok"] is True
+    assert [p.name for p in load_config(paths.config_path).profiles] == ["Mine", "HaqGen 8 H"]
+
+
+def test_delete_profile_missing_is_ok(paths):
+    assert service.delete_profile(paths, 7, "G")["ok"] is True

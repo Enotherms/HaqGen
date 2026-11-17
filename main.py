@@ -44,6 +44,9 @@ class Plugin:
             service.save_profile, _paths(), app_id, game_name, settings
         )
 
+    async def delete_profile(self, app_id: int, game_name: str) -> dict:
+        return await asyncio.to_thread(service.delete_profile, _paths(), app_id, game_name)
+
     async def launch_option(self, app_id: int, game_name: str) -> str:
         return service.launch_option(app_id, game_name)
 
