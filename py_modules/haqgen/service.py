@@ -190,7 +190,7 @@ def get_state(paths: Paths) -> dict:
         cfg = load_config(paths.config_path)
         state["profiles"] = [p.name for p in cfg.profiles if _is_haqgen(p)]
         state["debug_log"] = cfg.log_level == "debug"
-        if paths.config_path.exists():
+        if paths.config_path.exists() and launcher_path(paths.home()).exists():
             _self_repair(paths, cfg, dll)
     except ConfigError as exc:
         state["error"] = str(exc)

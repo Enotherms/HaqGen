@@ -465,6 +465,8 @@ def test_state_reports_wrong_branch(paths, tmp_path):
 
 
 def test_state_updates_stale_dll_path_and_writes_version(paths, tmp_path):
+    from haqgen.launcher import install_launcher
+    install_launcher(paths.home(), paths.manifest_path)
     dll = add_dll(tmp_path)
     paths.config_path.parent.mkdir(parents=True)
     paths.config_path.write_text('[global]\ndll = "/old/Lossless.dll"\n', encoding="utf-8")
@@ -482,6 +484,8 @@ def test_state_does_not_create_config_when_none_exists(paths, tmp_path):
 
 
 def test_state_upgrades_config_missing_version(paths, tmp_path):
+    from haqgen.launcher import install_launcher
+    install_launcher(paths.home(), paths.manifest_path)
     dll = add_dll(tmp_path)
     paths.config_path.parent.mkdir(parents=True)
     paths.config_path.write_text(f'[global]\ndll = "{dll}"\nlog_level = "debug"\n', encoding="utf-8")
@@ -492,6 +496,8 @@ def test_state_upgrades_config_missing_version(paths, tmp_path):
 
 
 def test_state_removes_keys_lsfg_vk_rejects(paths, tmp_path):
+    from haqgen.launcher import install_launcher
+    install_launcher(paths.home(), paths.manifest_path)
     dll = add_dll(tmp_path)
     paths.config_path.parent.mkdir(parents=True)
     paths.config_path.write_text(f'version = 2\n[global]\ndll = "{dll}"\ncurrent_profile = "old"\n', encoding="utf-8")
@@ -548,6 +554,8 @@ def test_state_lists_other_vulkan_layers(paths):
 
 
 def test_state_restores_missing_default_profile(paths, tmp_path):
+    from haqgen.launcher import install_launcher
+    install_launcher(paths.home(), paths.manifest_path)
     dll = add_dll(tmp_path)
     paths.config_path.parent.mkdir(parents=True)
     paths.config_path.write_text(f'version = 2\n\n[global]\ndll = "{dll}"\n', encoding="utf-8")
@@ -556,6 +564,8 @@ def test_state_restores_missing_default_profile(paths, tmp_path):
 
 
 def test_state_drops_markers_for_missing_profiles(paths, tmp_path):
+    from haqgen.launcher import install_launcher
+    install_launcher(paths.home(), paths.manifest_path)
     add_dll(tmp_path)
     service.save_profile(paths, 7, "G", {})
     service.set_enabled(paths, 7, False)
@@ -593,3 +603,21 @@ def test_read_log_includes_lsfg_vk_log_when_present(paths):
     (paths.home() / "lsfg-vk.log").write_text("lsfg line\n", encoding="utf-8")
     out = service.read_log(paths)
     assert "plugin line" in out and "lsfg line" in out
+
+
+def test_state_after_removal_does_not_recreate_profiles(paths, tmp_path):
+    add_dll(tmp_path)
+    service.setup(paths, fetch=fake_fetch, url="u")
+    service.save_profile(paths, 7, "G", {})
+    assert service.remove_all(paths, confirmed=True)["ok"] is True
+    service.get_state(paths)
+    assert [p.name for p in load_config(paths.config_path).profiles] == []
+    assert not paths.games_dir().exists()
+
+
+def test_self_repair_runs_only_while_launcher_is_installed(paths, tmp_path):
+    dll = add_dll(tmp_path)
+    paths.config_path.parent.mkdir(parents=True)
+    paths.config_path.write_text(f'version = 2\n\n[global]\ndll = "{dll}"\n', encoding="utf-8")
+    service.get_state(paths)
+    assert load_config(paths.config_path).profiles == []
