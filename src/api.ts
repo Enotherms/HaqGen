@@ -9,6 +9,7 @@ export interface State {
   wrong_branch: boolean;
   ls_branch: { installed: boolean; selected: string | null; current: string | null };
   other_layers: string[];
+  debug_log: boolean;
   error: string | null;
 }
 
@@ -81,6 +82,7 @@ export interface ScopeResult {
 export const getScope = callable<[number | null, string | null], ScopeResult>("get_scope");
 export const saveDefault = callable<[Settings], Result>("save_default");
 export const setEnabled = callable<[number | null, boolean], Result>("set_enabled");
+export const setDebugLog = callable<[boolean], Result>("set_debug_log");
 export const setGamescopeCompat = callable<[number | null, boolean], Result>("set_gamescope_compat");
 
 export interface ProfileEntry {

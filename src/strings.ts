@@ -49,6 +49,8 @@ export const S = {
   more: "More",
   healthCheck: "Health check",
   checking: "Checking...",
+  debugLog: "Debug log",
+  debugLogNote: "Saves lsfg-vk's log for troubleshooting (Show log). Restart the game to apply. Keep it off for daily play.",
   showLog: "Show log",
   logTitle: "HaqGen log",
   logEmpty: "The log is empty.",

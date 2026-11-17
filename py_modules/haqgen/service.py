@@ -182,12 +182,14 @@ def get_state(paths: Paths) -> dict:
         "launcher_installed": launcher_path(paths.home()).exists(),
         "ls_branch": lossless_branch(paths.steam_roots),
         "other_layers": _other_layers(paths),
+        "debug_log": False,
         "wrong_branch": dll is None and lossless_on_wrong_branch(paths.steam_roots),
         "error": None,
     }
     try:
         cfg = load_config(paths.config_path)
         state["profiles"] = [p.name for p in cfg.profiles if _is_haqgen(p)]
+        state["debug_log"] = cfg.log_level == "debug"
         if paths.config_path.exists():
             _self_repair(paths, cfg, dll)
     except ConfigError as exc:
@@ -362,14 +364,42 @@ def reset_defaults(paths: Paths) -> dict:
     return {"ok": True}
 
 
-def read_log(paths: Paths, max_lines: int = 200) -> str:
-    if paths.log_path is None:
+def _tail(path: Path | None, max_lines: int) -> str:
+    if path is None:
         return ""
     try:
-        with open(paths.log_path, encoding="utf-8", errors="replace") as fh:
+        with open(path, encoding="utf-8", errors="replace") as fh:
             return "\n".join(line.rstrip("\n") for line in deque(fh, maxlen=max_lines))
     except OSError:
         return ""
+
+
+def _lsfg_log(paths: Paths) -> Path:
+    return paths.home() / "lsfg-vk.log"
+
+
+def read_log(paths: Paths, max_lines: int = 200) -> str:
+    plugin = _tail(paths.log_path, max_lines)
+    lsfg = _tail(_lsfg_log(paths), max_lines)
+    if not lsfg:
+        return plugin
+    return f"{plugin}\n\n--- lsfg-vk debug log ---\n{lsfg}".lstrip()
+
+
+def set_debug_log(paths: Paths, on: bool) -> dict:
+    """Turns lsfg-vk's debug log (written to ~/lsfg-vk.log) on or off."""
+    try:
+        cfg = load_config(paths.config_path)
+        if on:
+            cfg = dataclasses.replace(cfg, log_level="debug", log_file=str(_lsfg_log(paths)))
+        else:
+            cfg = dataclasses.replace(cfg, log_level=None, log_file=None)
+        save_config(paths.config_path, cfg)
+        if not on:
+            _lsfg_log(paths).unlink(missing_ok=True)
+    except (ConfigError, OSError) as exc:
+        return _fail(str(exc))
+    return {"ok": True}
 
 
 def delete_profile(paths: Paths, app_id: int, game_name: str) -> dict:

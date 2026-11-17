@@ -96,5 +96,8 @@ class Plugin:
     async def health_check(self) -> dict:
         return await asyncio.to_thread(service.health_check, _paths())
 
+    async def set_debug_log(self, on: bool) -> dict:
+        return await asyncio.to_thread(service.set_debug_log, _paths(), on)
+
     async def reset_defaults(self) -> dict:
         return await asyncio.to_thread(service.reset_defaults, _paths())

@@ -564,3 +564,32 @@ def test_state_drops_markers_for_missing_profiles(paths, tmp_path):
     service.get_state(paths)
     assert not (games_dir(paths) / "7.profile").exists()
     assert not (games_dir(paths) / "7.off").exists()
+
+
+def test_debug_log_toggle(paths, tmp_path):
+    add_dll(tmp_path)
+    service.save_default(paths, {})
+    assert service.get_state(paths)["debug_log"] is False
+    assert service.set_debug_log(paths, True)["ok"] is True
+    cfg = load_config(paths.config_path)
+    assert cfg.log_level == "debug" and cfg.log_file == str(paths.home() / "lsfg-vk.log")
+    assert service.get_state(paths)["debug_log"] is True
+    (paths.home() / "lsfg-vk.log").write_text("old lines")
+    assert service.set_debug_log(paths, False)["ok"] is True
+    cfg = load_config(paths.config_path)
+    assert cfg.log_level is None and cfg.log_file is None
+    assert not (paths.home() / "lsfg-vk.log").exists()
+
+
+def test_debug_log_off_keeps_profiles(paths):
+    service.save_profile(paths, 7, "G", {"multiplier": 3})
+    service.set_debug_log(paths, True)
+    service.set_debug_log(paths, False)
+    assert service.get_scope(paths, 7, "G")["profile"]["multiplier"] == 3
+
+
+def test_read_log_includes_lsfg_vk_log_when_present(paths):
+    paths.log_path.write_text("plugin line\n", encoding="utf-8")
+    (paths.home() / "lsfg-vk.log").write_text("lsfg line\n", encoding="utf-8")
+    out = service.read_log(paths)
+    assert "plugin line" in out and "lsfg line" in out

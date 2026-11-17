@@ -99,3 +99,7 @@ def test_list_profiles_method(plugin_module):
 
 def test_gamescope_method(plugin_module):
     assert asyncio.run(plugin_module.Plugin().set_gamescope_compat(None, False))["ok"] is True
+
+
+def test_debug_log_method(plugin_module):
+    assert asyncio.run(plugin_module.Plugin().set_debug_log(False))["ok"] is True

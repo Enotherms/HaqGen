@@ -1,4 +1,4 @@
-import { ConfirmModal, showModal } from "@decky/ui";
+import { ConfirmModal, PanelSectionRow, showModal, ToggleField } from "@decky/ui";
 import { useState } from "react";
 import { healthCheck } from "../api";
 import { S } from "../strings";
@@ -7,6 +7,8 @@ import { RemoveData } from "./RemoveData";
 import { Hint, PlainButton } from "./theme";
 
 interface Props {
+  debugLog: boolean;
+  onDebugLog: (on: boolean) => void;
   onShowLog: () => void;
   onReset: () => void;
   onRemoved: () => void;
@@ -23,7 +25,7 @@ function HealthModal({ ok, summary, details, closeModal }: { ok: boolean; summar
   );
 }
 
-export function MoreSection({ onShowLog, onReset, onRemoved }: Props) {
+export function MoreSection({ debugLog, onDebugLog, onShowLog, onReset, onRemoved }: Props) {
   const [checking, setChecking] = useState(false);
   const resetInfo = useInfo(S.resetInfo);
   return (
@@ -41,6 +43,9 @@ export function MoreSection({ onShowLog, onReset, onRemoved }: Props) {
       >
         {checking ? S.checking : S.healthCheck}
       </PlainButton>
+      <PanelSectionRow>
+        <ToggleField label={S.debugLog} description={S.debugLogNote} checked={debugLog} onChange={onDebugLog} />
+      </PanelSectionRow>
       <PlainButton onClick={onShowLog}>{S.showLog}</PlainButton>
       <PlainButton onClick={onReset}>{S.resetProfiles}</PlainButton>
       {resetInfo && <Hint>{resetInfo}</Hint>}

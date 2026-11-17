@@ -15,6 +15,7 @@ import {
   saveDefault,
   saveProfile,
   ScopeResult,
+  setDebugLog,
   setEnabled,
   setGamescopeCompat,
   setup,
@@ -247,6 +248,15 @@ export function Panel() {
     await loadScope();
   };
 
+  const onDebugLog = async (on: boolean) => {
+    setState((cur) => (cur ? { ...cur, debug_log: on } : cur));
+    const r = await setDebugLog(on);
+    if (!mounted.current) return;
+    if (!r.ok) setMessage(describeError(r.error));
+    needsRestart();
+    await refresh();
+  };
+
   const onCopy = async () => {
     const text = await launchOption();
     toast((await copyText(text)) ? S.copied : S.copyFailed(text));
@@ -361,6 +371,8 @@ export function Panel() {
         <CollapsePill label={S.more} open={showMore} onToggle={() => setShowMore((v) => !v)} />
         {showMore && (
           <MoreSection
+            debugLog={state.debug_log ?? false}
+            onDebugLog={onDebugLog}
             onShowLog={onShowLog}
             onReset={onReset}
             onRemoved={async () => {
