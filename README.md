@@ -92,6 +92,11 @@ To install on a Deck, copy `dist/`, `main.py`, `plugin.json`, `package.json`, `L
 
 `scripts/deck-console.mjs` streams the Quick Access menu's console for debugging. It needs Decky's *Allow Remote CEF Debugging* and an SSH tunnel: `ssh -N -L 9222:127.0.0.1:8080 deck@<deck-ip>`, then `node scripts/deck-console.mjs 127.0.0.1:9222`.
 
+> **Security: switch development access off when you are done.**
+> - *Allow Remote CEF Debugging* lets anything that can reach the debugger control Steam's interface (including your account and store). Turn it off again in Decky settings › Developer as soon as you finish debugging, and close the SSH tunnel.
+> - SSH with a password is reachable by every device on your network. When you are not developing, run `sudo systemctl disable --now sshd` on the Deck; if you keep it on, use a strong password or SSH keys.
+> - Only enable these on networks you trust, never on public Wi-Fi.
+
 ## Credits
 
 - [lsfg-vk](https://lsfg-vk.dev): the Vulkan layer that runs Lossless Scaling frame generation on Linux.
