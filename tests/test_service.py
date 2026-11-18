@@ -671,3 +671,98 @@ def test_fps_cap_per_game_and_removed_with_profile(paths):
     assert service.get_scope(paths, None, None)["fps_cap"] == 0
     service.delete_profile(paths, 7, "G")
     assert not (games_dir(paths) / "7.fpscap").exists()
+
+
+@pytest.mark.parametrize(
+    "call",
+    [
+        lambda p: service.set_fps_cap(p, "abc", 30),
+        lambda p: service.set_enabled(p, "abc", False),
+        lambda p: service.set_gamescope_compat(p, "abc", False),
+        lambda p: service.delete_profile(p, "abc", "G"),
+        lambda p: service.save_profile(p, "abc", "G", {}),
+        lambda p: service.save_profile(p, 7, "G", None),
+        lambda p: service.save_default(p, None),
+        lambda p: service.save_profile(p, 7, 123, {}),
+        lambda p: service.save_profile(p, True, "G", {}),
+        lambda p: service.save_profile(p, -5, "G", {}),
+    ],
+)
+def test_bad_input_returns_error(paths, call):
+    r = call(paths)
+    assert r["ok"] is False and r["error"]
+
+
+def test_exe_names_must_be_a_list(paths):
+    assert service.save_profile(paths, 7, "G", {"exe_names": "game.exe"})["ok"] is False
+    assert service.save_profile(paths, 7, "G", {"exe_names": ["game.exe"]})["profile"]["exe_names"] == ["game.exe"]
+
+
+def test_download_rejects_oversized_files(tmp_path, monkeypatch):
+    import urllib.request
+
+    class Resp(io.BytesIO):
+        headers = {"Content-Length": str(200 * 1024 * 1024)}
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+    monkeypatch.setattr(urllib.request, "urlopen", lambda url, timeout=None, context=None: Resp(b"x"))
+    with pytest.raises(ValueError):
+        service.download("https://example.invalid/x", tmp_path / "out")
+    assert not (tmp_path / "out").exists()
+
+
+def test_download_stops_when_body_exceeds_cap(tmp_path, monkeypatch):
+    import urllib.request
+
+    class Resp(io.BytesIO):
+        headers = {}
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+    monkeypatch.setattr(service, "MAX_DOWNLOAD", 1000)
+    monkeypatch.setattr(urllib.request, "urlopen", lambda url, timeout=None, context=None: Resp(b"y" * 5000))
+    with pytest.raises(ValueError):
+        service.download("https://example.invalid/x", tmp_path / "out")
+    assert not (tmp_path / "out").exists()
+
+
+def test_marker_write_does_not_follow_symlinked_tmp(paths, tmp_path):
+    victim = tmp_path / "victim.txt"
+    victim.write_text("keep")
+    games_dir(paths).mkdir(parents=True)
+    import os as _os
+    _os.symlink(victim, games_dir(paths) / "default.off.tmp")
+    service.set_enabled(paths, None, False)
+    assert victim.read_text() == "keep"
+    assert (games_dir(paths) / "default.off").exists()
+
+
+def test_reset_lsfg_config_keeps_three_backups(paths, monkeypatch):
+    import itertools
+
+    counter = itertools.count()
+    monkeypatch.setattr(service.time, "strftime", lambda fmt: f"20261118-00000{next(counter)}")
+    paths.config_path.parent.mkdir(parents=True)
+    for _ in range(5):
+        paths.config_path.write_text("version = 2\n", encoding="utf-8")
+        assert service.reset_lsfg_config(paths)["ok"] is True
+    backups = sorted(paths.config_path.parent.glob("conf.toml.haqgen-backup-*"))
+    assert [b.name[-1] for b in backups] == ["2", "3", "4"]
+
+
+def test_layers_with_enable_environment_are_not_reported(paths):
+    d = paths.local_dir / "share" / "vulkan" / "implicit_layer.d"
+    d.mkdir(parents=True)
+    (d / "VkLayer_MAKO_render.json").write_text('{"layer": {"name": "VK_LAYER_MAKO", "enable_environment": {"ENABLE_MAKO": "1"}}}')
+    (d / "vkBasalt.json").write_text('{"layer": {"name": "VK_LAYER_vkBasalt"}}')
+    (d / "broken.json").write_text("{not json")
+    assert service.get_state(paths)["other_layers"] == ["broken", "vkBasalt"]

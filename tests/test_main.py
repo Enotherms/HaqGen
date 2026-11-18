@@ -136,8 +136,7 @@ def test_read_log_line_count_is_clamped(plugin_module, monkeypatch):
     assert seen["n"] == 2000
 
 
-def test_every_backend_method_goes_through_the_lock():
-    import inspect
+def test_every_backend_method_goes_through_a_helper():
     import pathlib
 
     source = pathlib.Path(__file__).resolve().parent.parent.joinpath("main.py").read_text()
@@ -147,3 +146,41 @@ def test_every_backend_method_goes_through_the_lock():
 
 def test_fps_cap_method(plugin_module):
     assert asyncio.run(plugin_module.Plugin().set_fps_cap(None, 30))["ok"] is True
+
+
+def test_health_check_does_not_wait_for_the_write_lock(plugin_module):
+    import threading
+    import time
+
+    plugin_module._LOCK.acquire()
+    done = threading.Event()
+
+    def worker():
+        asyncio.run(plugin_module.Plugin().health_check())
+        done.set()
+
+    t = threading.Thread(target=worker, daemon=True)
+    t.start()
+    try:
+        assert done.wait(2), "health check waited for the write lock"
+    finally:
+        plugin_module._LOCK.release()
+        t.join(5)
+
+
+def test_changes_still_wait_for_the_write_lock(plugin_module):
+    import threading
+
+    plugin_module._LOCK.acquire()
+    done = threading.Event()
+
+    def worker():
+        asyncio.run(plugin_module.Plugin().save_default({"multiplier": 3}))
+        done.set()
+
+    t = threading.Thread(target=worker)
+    t.start()
+    assert not done.wait(0.3)
+    plugin_module._LOCK.release()
+    assert done.wait(5)
+    t.join()

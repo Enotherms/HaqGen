@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import os
 import tarfile
 import zipfile
 from dataclasses import dataclass, field
@@ -96,6 +97,8 @@ def install_lsfg_vk(
     try:
         dest_root.mkdir(parents=True, exist_ok=True)
         work.mkdir(parents=True, exist_ok=True)
+        if os.path.lexists(archive):
+            archive.unlink()
         fetch(url, archive)
         if sha256 is not None and _sha256(archive) != sha256.lower():
             raise ValueError("Checksum mismatch: the downloaded file is not the expected release")

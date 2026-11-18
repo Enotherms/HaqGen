@@ -8,6 +8,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from .fsutil import atomic_write
+
 
 class ConfigError(Exception):
     pass
@@ -169,19 +171,7 @@ def save_config(path: Path, cfg: Config) -> None:
     backup = path.with_name(path.name + ".haqgen.bak")
     if path.exists() and not backup.exists():
         shutil.copy2(path, backup)
-    tmp = path.with_name(path.name + ".tmp")
-    try:
-        with open(tmp, "w", encoding="utf-8") as fh:
-            fh.write(text)
-            fh.flush()
-            os.fsync(fh.fileno())
-        os.replace(tmp, path)
-    except BaseException:
-        try:
-            tmp.unlink()
-        except OSError:
-            pass
-        raise
+    atomic_write(path, text)
 
 
 def needs_upgrade(path: Path) -> bool:

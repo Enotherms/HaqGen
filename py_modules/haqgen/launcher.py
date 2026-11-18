@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
+from .fsutil import atomic_write
 from .manifest import load_manifest, record_paths
 
 LAUNCHER_NAME = "haqgen"
@@ -76,20 +77,7 @@ def install_launcher(home_dir: Path, manifest_path: Path) -> Path:
         if not ours:
             raise FileExistsError(f"refusing to overwrite {path}: it was not created by HaqGen")
     path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = path.with_name(path.name + ".tmp")
-    try:
-        with open(tmp, "w", encoding="utf-8") as fh:
-            fh.write(SCRIPT)
-            fh.flush()
-            os.fsync(fh.fileno())
-        os.chmod(tmp, 0o755)
-        os.replace(tmp, path)
-    except BaseException:
-        try:
-            tmp.unlink()
-        except OSError:
-            pass
-        raise
+    atomic_write(path, SCRIPT, mode=0o755)
     if str(path) not in load_manifest(manifest_path).paths:
         record_paths(manifest_path, [path])
     return path

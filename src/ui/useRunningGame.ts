@@ -1,5 +1,6 @@
 import { Router } from "@decky/ui";
 import { useEffect, useState } from "react";
+import { subscribeAppLifetime } from "../steam";
 
 export interface RunningGame {
   appId: number;
@@ -7,8 +8,12 @@ export interface RunningGame {
 }
 
 function readRunning(): RunningGame | null {
-  const app = Router.MainRunningApp;
-  return app ? { appId: Number(app.appid), name: app.display_name } : null;
+  try {
+    const app = Router.MainRunningApp;
+    return app ? { appId: Number(app.appid), name: app.display_name } : null;
+  } catch {
+    return null;
+  }
 }
 
 export function useRunningGame(): RunningGame | null {
@@ -22,14 +27,14 @@ export function useRunningGame(): RunningGame | null {
       );
     };
     let timer: ReturnType<typeof setTimeout> | undefined;
-    const registration = SteamClient.GameSessions.RegisterForAppLifetimeNotifications(() => {
+    const stop = subscribeAppLifetime(typeof SteamClient === "undefined" ? undefined : SteamClient, () => {
       if (timer !== undefined) clearTimeout(timer);
       timer = setTimeout(update, 500);
     });
     update();
     return () => {
       if (timer !== undefined) clearTimeout(timer);
-      registration.unregister();
+      stop();
     };
   }, []);
 

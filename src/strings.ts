@@ -77,7 +77,7 @@ export const S = {
   resetConfirmBody: "This removes every HaqGen game profile and per-game setting, and resets the Default profile. It cannot be undone.",
   resetConfirmOk: "Reset",
   resetConfig: "Reset lsfg-vk config",
-  resetConfigInfo: "Saves a backup, then writes a clean one.",
+  resetConfigInfo: "Backup kept. Removes other tools' profiles.",
   resetConfigDone: (backup: string | null | undefined) =>
     backup ? `lsfg-vk config reset. Backup: ${backup}` : "lsfg-vk config created.",
   removeData: "Remove plugin data",

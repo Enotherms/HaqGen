@@ -39,3 +39,13 @@ describe("copyText", () => {
     expect(removed).toHaveLength(1);
   });
 });
+
+describe("copyText focus", () => {
+  it("gives focus back to the control that had it", async () => {
+    const { doc } = fakeDoc(true);
+    const previous = { focus: vi.fn() };
+    (doc as Record<string, unknown>).activeElement = previous;
+    await copyText("abc", doc as never, { writeText: vi.fn() });
+    expect(previous.focus).toHaveBeenCalled();
+  });
+});

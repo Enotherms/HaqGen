@@ -4,6 +4,7 @@ import json
 import os
 from pathlib import Path
 
+from .fsutil import atomic_write
 from .presets import PRESETS
 
 DEFAULTS = {"default_preset": "balanced"}
@@ -25,16 +26,4 @@ def load_settings(path: Path) -> dict:
 def save_settings(path: Path, data: dict) -> None:
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = path.with_name(path.name + ".tmp")
-    try:
-        with open(tmp, "w", encoding="utf-8") as fh:
-            json.dump(data, fh, indent=2)
-            fh.flush()
-            os.fsync(fh.fileno())
-        os.replace(tmp, path)
-    except BaseException:
-        try:
-            tmp.unlink()
-        except OSError:
-            pass
-        raise
+    atomic_write(path, json.dumps(data, indent=2))

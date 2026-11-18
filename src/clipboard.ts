@@ -1,4 +1,5 @@
 interface CopyDoc {
+  activeElement?: { focus?: () => void } | null;
   createElement(tag: "input"): { value: string; style: Partial<CSSStyleDeclaration> | Record<string, string>; focus(): void; select(): void };
   body: { appendChild(node: unknown): unknown; removeChild(node: unknown): unknown };
   execCommand(command: string): boolean;
@@ -13,6 +14,7 @@ export async function copyText(
   doc: CopyDoc = document as unknown as CopyDoc,
   clip: Clip | undefined = typeof navigator !== "undefined" ? navigator.clipboard : undefined
 ): Promise<boolean> {
+  const previous = doc.activeElement ?? null;
   const input = doc.createElement("input");
   input.value = text;
   Object.assign(input.style, { position: "absolute", left: "-9999px", opacity: "0" });
@@ -33,5 +35,9 @@ export async function copyText(
     }
   } finally {
     doc.body.removeChild(input);
+    try {
+      previous?.focus?.();
+    } catch {
+    }
   }
 }

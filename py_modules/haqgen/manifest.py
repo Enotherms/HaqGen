@@ -6,6 +6,8 @@ import shutil
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from .fsutil import atomic_write
+
 
 @dataclass
 class Manifest:
@@ -44,19 +46,7 @@ def record_paths(manifest_path: Path, new_paths: list[Path]) -> None:
         if str(p) not in current.paths:
             current.paths.append(str(p))
     manifest_path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = manifest_path.with_name(manifest_path.name + ".tmp")
-    try:
-        with open(tmp, "w", encoding="utf-8") as fh:
-            json.dump({"version": current.version, "paths": current.paths}, fh, indent=2)
-            fh.flush()
-            os.fsync(fh.fileno())
-        os.replace(tmp, manifest_path)
-    except BaseException:
-        try:
-            tmp.unlink()
-        except OSError:
-            pass
-        raise
+    atomic_write(manifest_path, json.dumps({"version": current.version, "paths": current.paths}, indent=2))
 
 
 def _inside(path: Path, roots: list[Path]) -> bool:
@@ -124,16 +114,4 @@ def execute_removal(plan: RemovalPlan) -> RemovalReport:
 def replace_manifest(manifest_path: Path, paths: list[str]) -> None:
     manifest_path = Path(manifest_path)
     manifest_path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = manifest_path.with_name(manifest_path.name + ".tmp")
-    try:
-        with open(tmp, "w", encoding="utf-8") as fh:
-            json.dump({"version": 1, "paths": list(paths)}, fh, indent=2)
-            fh.flush()
-            os.fsync(fh.fileno())
-        os.replace(tmp, manifest_path)
-    except BaseException:
-        try:
-            tmp.unlink()
-        except OSError:
-            pass
-        raise
+    atomic_write(manifest_path, json.dumps({"version": 1, "paths": list(paths)}, indent=2))

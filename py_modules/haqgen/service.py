@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import dataclasses
+import json
 import os
 import re
 import shutil
@@ -13,6 +14,7 @@ from pathlib import Path
 from typing import Callable
 
 from .config import Config, ConfigError, Profile, load_config, needs_upgrade, save_config
+from .fsutil import atomic_write
 from .install import allowed_roots, install_lsfg_vk, lsfg_present
 from .lsfg_cli import healthcheck, validate_config
 from .locate import (
@@ -37,6 +39,34 @@ from .presets import (
 
 PROFILE_PREFIX = "HaqGen "
 MARKER_SUFFIXES = ("profile", "off", "gamescope-wsi", "fpscap")
+MAX_DOWNLOAD = 64 * 1024 * 1024
+KEEP_BACKUPS = 3
+
+
+def _app_id(value) -> int:
+    if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
+        raise ValueError("invalid game id")
+    return value
+
+
+def _scope_id(value) -> int | None:
+    return None if value is None else _app_id(value)
+
+
+def _game_name(value) -> str:
+    if not isinstance(value, str) or not value.strip() or len(value) > 200:
+        raise ValueError("invalid game name")
+    return value
+
+
+def _settings(value) -> dict:
+    if not isinstance(value, dict):
+        raise ValueError("settings must be an object")
+    if "exe_names" in value and not (
+        isinstance(value["exe_names"], list) and all(isinstance(n, str) for n in value["exe_names"])
+    ):
+        raise ValueError("exe_names must be a list of names")
+    return value
 FPS_CAP_RANGE = (10, 240)
 
 
@@ -84,9 +114,24 @@ def find_ca_bundle(candidates=None) -> str | None:
 
 def download(url: str, dest: Path) -> None:
     context = ssl.create_default_context(cafile=find_ca_bundle())
-    with urllib.request.urlopen(url, timeout=30, context=context) as resp, open(dest, "wb") as out:
-        while chunk := resp.read(1 << 16):
-            out.write(chunk)
+    dest = Path(dest)
+    if os.path.lexists(dest):
+        dest.unlink()
+    try:
+        with urllib.request.urlopen(url, timeout=30, context=context) as resp:
+            length = int((getattr(resp, "headers", {}) or {}).get("Content-Length") or 0)
+            if length > MAX_DOWNLOAD:
+                raise ValueError("download is larger than expected")
+            total = 0
+            with open(dest, "xb") as out:
+                while chunk := resp.read(1 << 16):
+                    total += len(chunk)
+                    if total > MAX_DOWNLOAD:
+                        raise ValueError("download is larger than expected")
+                    out.write(chunk)
+    except BaseException:
+        dest.unlink(missing_ok=True)
+        raise
 
 
 def _is_haqgen(p: Profile) -> bool:
@@ -171,9 +216,7 @@ def _marker(paths: Paths, app_id: int | None, suffix: str) -> Path:
 
 
 def _write_marker(path: Path, text: str) -> None:
-    tmp = path.with_name(path.name + ".tmp")
-    tmp.write_text(text, encoding="utf-8")
-    os.replace(tmp, path)
+    atomic_write(path, text)
 
 
 def get_state(paths: Paths) -> dict:
@@ -206,10 +249,20 @@ def get_state(paths: Paths) -> dict:
 _OWN_LAYERS = ("vklayer_lsfgvk", "steamoverlay", "steamfossilize")
 
 
+def _always_on(manifest: Path) -> bool:
+    """Layers with an enable_environment only run when a launcher opts in, so they don't interfere."""
+    try:
+        data = json.loads(manifest.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return True
+    layers = data.get("layers") or [data.get("layer") or {}] if isinstance(data, dict) else []
+    return not any(isinstance(l, dict) and l.get("enable_environment") for l in layers)
+
+
 def _other_layers(paths: Paths) -> list[str]:
     d = paths.local_dir / "share" / "vulkan" / "implicit_layer.d"
     try:
-        names = {f.name[: -len(".json")] for f in d.iterdir() if f.name.endswith(".json")}
+        names = {f.name[: -len(".json")] for f in d.iterdir() if f.name.endswith(".json") and _always_on(f)}
     except OSError:
         return []
     names = {n[: -len(".x86")] if n.endswith(".x86") else n for n in names}
@@ -289,8 +342,9 @@ def get_profile(paths: Paths, app_id: int, game_name: str) -> dict:
 
 
 def save_profile(paths: Paths, app_id: int, game_name: str, settings: dict) -> dict:
-    name = profile_name(app_id, game_name)
     try:
+        app_id, game_name, settings = _app_id(app_id), _game_name(game_name), _settings(settings)
+        name = profile_name(app_id, game_name)
         cfg = load_config(paths.config_path)
         current = _find(cfg, name)
         profile = _apply_settings(current or _default_profile(paths, app_id, game_name, cfg), settings)
@@ -408,12 +462,13 @@ def set_debug_log(paths: Paths, on: bool) -> dict:
 
 def delete_profile(paths: Paths, app_id: int, game_name: str) -> dict:
     try:
+        app_id, game_name = _app_id(app_id), _game_name(game_name)
         if paths.config_path.exists():
             cfg = load_config(paths.config_path)
             save_config(paths.config_path, remove_profile(cfg, profile_name(app_id, game_name)))
         for suffix in MARKER_SUFFIXES:
             _marker(paths, app_id, suffix).unlink(missing_ok=True)
-    except (ConfigError, OSError) as exc:
+    except (ConfigError, OSError, ValueError) as exc:
         return _fail(str(exc))
     return {"ok": True}
 
@@ -488,6 +543,7 @@ def get_scope(paths: Paths, app_id: int | None, game_name: str | None) -> dict:
 
 def save_default(paths: Paths, settings: dict) -> dict:
     try:
+        settings = _settings(settings)
         cfg = load_config(paths.config_path)
         profile = _apply_settings(_find(cfg, DEFAULT_PROFILE) or _base_default(), settings)
         save_config(paths.config_path, upsert_profile(cfg, profile))
@@ -498,12 +554,13 @@ def save_default(paths: Paths, settings: dict) -> dict:
 
 def set_enabled(paths: Paths, app_id: int | None, enabled: bool) -> dict:
     try:
+        app_id = _scope_id(app_id)
         marker = _games(paths) / _marker(paths, app_id, "off").name
         if enabled:
             marker.unlink(missing_ok=True)
         else:
             _write_marker(marker, "")
-    except OSError as exc:
+    except (OSError, ValueError) as exc:
         return _fail(str(exc))
     return {"ok": True}
 
@@ -528,12 +585,13 @@ def list_profiles(paths: Paths) -> list[dict]:
 def set_gamescope_compat(paths: Paths, app_id: int | None, on: bool) -> dict:
     """On (default) makes the launcher set ENABLE_GAMESCOPE_WSI=0; off leaves Gamescope's layer alone."""
     try:
+        app_id = _scope_id(app_id)
         marker = _games(paths) / _marker(paths, app_id, "gamescope-wsi").name
         if on:
             marker.unlink(missing_ok=True)
         else:
             _write_marker(marker, "")
-    except OSError as exc:
+    except (OSError, ValueError) as exc:
         return _fail(str(exc))
     return {"ok": True}
 
@@ -545,6 +603,9 @@ def reset_lsfg_config(paths: Paths) -> dict:
         if paths.config_path.exists():
             backup = paths.config_path.with_name(f"conf.toml.haqgen-backup-{time.strftime('%Y%m%d-%H%M%S')}")
             shutil.copy2(paths.config_path, backup)
+            old = sorted(paths.config_path.parent.glob("conf.toml.haqgen-backup-*"))
+            for stale in old[:-KEEP_BACKUPS]:
+                stale.unlink(missing_ok=True)
         dll = find_dll(paths.steam_roots)
         cfg = Config(dll=str(dll) if dll else None, profiles=[_base_default()])
         save_config(paths.config_path, cfg)
@@ -566,6 +627,10 @@ def set_fps_cap(paths: Paths, app_id: int | None, cap) -> dict:
     """Base FPS cap applied by the launcher at game start; 0 removes it."""
     if isinstance(cap, bool) or not isinstance(cap, int):
         return _fail("FPS cap must be a whole number")
+    try:
+        app_id = _scope_id(app_id)
+    except ValueError as exc:
+        return _fail(str(exc))
     if cap != 0 and not FPS_CAP_RANGE[0] <= cap <= FPS_CAP_RANGE[1]:
         return _fail(f"FPS cap must be between {FPS_CAP_RANGE[0]} and {FPS_CAP_RANGE[1]}")
     try:
