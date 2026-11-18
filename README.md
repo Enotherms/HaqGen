@@ -91,4 +91,4 @@ scripts/deploy.sh <deck-ip>
 
 ## License
 
-See [LICENSE](LICENSE). The license may still change before the first release.
+BSD 3-Clause License. See [LICENSE](LICENSE).
