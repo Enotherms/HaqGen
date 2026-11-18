@@ -21,7 +21,7 @@ HaqGen is an independent community project. It is not made or supported by the a
 - **Safe removal.** *Remove plugin data* lists exactly what it will delete and only removes files HaqGen created. It never touches drivers, system files, your games or Lossless Scaling.
 - **No background work.** Nothing runs while you play unless you press something.
 
-Still to be verified on a Deck: whether turning a game's frame generation on/off needs a restart in every case, and *Remove plugin data* end to end.
+Verified on a Steam Deck OLED: setup, frame generation at 2x/3x, Off after a game restart, and *Remove plugin data* (removes only HaqGen's files and leaves Lossless Scaling untouched).
 
 ## Requirements
 
@@ -41,7 +41,7 @@ Still to be verified on a Deck: whether turning a game's frame generation on/off
 
 - **No game running:** the panel edits the *Default* profile, or the profile you pick under **Profile**. **Create profile** makes a profile for an installed game, starting from Default.
 - **Game running:** the panel follows that game. **Save as profile for …** gives it its own settings; **Use Default instead** removes them.
-- **Frame generation:** the multiplier applies instantly; switching between Off and on needs a game restart.
+- **Frame generation:** 2x/3x/4x apply instantly. Switching between Off and on needs a game restart, because lsfg-vk is turned on or off when the game starts (the panel shows a restart reminder).
 - **Presets** set flow scale and the model; they never change your multiplier.
 
 ## Tips for good results
