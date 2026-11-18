@@ -23,6 +23,7 @@ import {
   State,
 } from "../api";
 import { readCache, writeCache } from "../cache";
+import { C } from "../colors";
 import { copyText } from "../clipboard";
 import {
   creatableGames,
@@ -60,7 +61,9 @@ function toast(body: string) {
 function Notice({ text, strong }: { text: string; strong?: boolean }) {
   return (
     <PanelSectionRow>
-      <div style={{ fontSize: 13, fontWeight: strong ? 600 : 400, color: strong ? undefined : "#ffb4a2" }}>{text}</div>
+      <div style={{ fontSize: 13, lineHeight: 1.35, padding: "4px 0", fontWeight: strong ? 600 : 400, color: strong ? C.text : C.danger }}>
+        {strong ? text : `⚠ ${text}`}
+      </div>
     </PanelSectionRow>
   );
 }

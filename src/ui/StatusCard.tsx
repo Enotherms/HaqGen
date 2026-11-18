@@ -2,11 +2,10 @@ import { ButtonItem, PanelSection, PanelSectionRow } from "@decky/ui";
 import { useState } from "react";
 import { FaCheckCircle, FaExclamationTriangle, FaTimesCircle } from "react-icons/fa";
 import { State } from "../api";
+import { C } from "../colors";
 import { branchMessage, RESTART } from "../logic";
 import { S } from "../strings";
 
-const READY = "#65b9c9";
-const PROBLEM = "#d9a35b";
 
 type RowState = "ready" | "missing" | "warning";
 
@@ -21,10 +20,13 @@ function Row({ state, text, first }: { state: RowState; text: string; first?: bo
         padding: "8px 10px",
         fontSize: 13,
         lineHeight: 1.3,
-        borderTop: first ? "none" : "1px solid rgba(255,255,255,0.06)",
+        borderTop: first ? "none" : `1px solid ${C.bg}`,
       }}
     >
-      <Icon aria-hidden style={{ flex: "0 0 15px", color: state === "ready" ? READY : PROBLEM }} />
+      <Icon
+        aria-hidden
+        style={{ flex: "0 0 15px", color: state === "ready" ? C.success : state === "warning" ? C.warning : C.danger }}
+      />
       <span>{text}</span>
     </div>
   );
@@ -48,8 +50,7 @@ export function StatusCard({
             width: "100%",
             boxSizing: "border-box",
             borderRadius: 6,
-            border: "1px solid rgba(101,185,201,0.25)",
-            background: "rgba(101,185,201,0.07)",
+            background: C.surface,
             overflow: "hidden",
           }}
         >
