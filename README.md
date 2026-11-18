@@ -14,9 +14,10 @@ HaqGen is an independent community project. It is not made or supported by the a
 - **One launch option for every game:** `~/haqgen %command%`.
 - **Profiles.** A *Default* profile used by every game, plus per-game profiles. While a game runs, the panel edits that game's profile; otherwise you pick which profile to edit or create one.
 - **Simple controls.** Frame generation `Off · 2x · 3x · 4x` and presets `Battery · Balanced · Quality`. Changes save automatically.
-- **Advanced.** Motion quality (flow scale), lighter model, and Gamescope compatibility (on by default; the lsfg-vk fix for Steam Deck Game Mode).
+- **FPS cap per profile** (`Off · 30 · 40 · 45 · 60`). Caps the game's real frame rate before frame generation (VKD3D-Proton for DX12 games, DXVK for DX9–11), which gives steadier generated frames than Steam's limiter.
+- **Advanced.** Motion quality (flow scale), lighter model, and Gamescope compatibility (on by default; the lsfg-vk fix for Steam Deck Game Mode; may turn off HDR in that game).
 - **Clear notes.** Each control says whether it applies instantly or needs a game restart (help text is behind *Show info*).
-- **Health check** using lsfg-vk's own validator, a **debug log** switch and a log viewer.
+- **Troubleshooting.** Health check using lsfg-vk's own validator, a debug log switch, a log viewer and *Reset lsfg-vk config* (keeps a backup).
 - **Self-repair.** Opening the panel keeps lsfg-vk's config valid and the DLL path current.
 - **Safe removal.** *Remove plugin data* lists exactly what it will delete and only removes files HaqGen created. It never touches drivers, system files, your games or Lossless Scaling.
 - **No background work.** Nothing runs while you play unless you press something.
@@ -40,14 +41,16 @@ Verified on a Steam Deck OLED: setup, frame generation at 2x/3x, Off after a gam
 ## Using it
 
 - **No game running:** the panel edits the *Default* profile, or the profile you pick under **Profile**. **Create profile** makes a profile for an installed game, starting from Default.
-- **Game running:** the panel follows that game. **Save as profile for …** gives it its own settings; **Use Default instead** removes them.
+- **Game running:** the panel follows that game. **Save as profile for …** gives it its own settings; **Delete profile** (asks first) sends it back to Default.
 - **Frame generation:** 2x/3x/4x apply instantly. Switching between Off and on needs a game restart, because lsfg-vk is turned on or off when the game starts (the panel shows a restart reminder).
 - **Presets** set flow scale and the model; they never change your multiplier.
+- **FPS cap** needs a game restart. It works with frame generation on or off.
+- **Danger zone** holds *Reset profiles* and *Remove plugin data*; both ask before doing anything.
 
 ## Tips for good results
 
-- **Leave Steam's frame limit off** and cap the frame rate in the game's own settings. A steady base frame rate gives much cleaner generated frames.
-- **Match your screen:** on the 90 Hz OLED, a 30 FPS cap at 3x gives 90; or set the Deck to 60 Hz and use a 30 FPS cap at 2x.
+- **Leave Steam's frame limit off** (or at your screen's refresh rate). Steam's limiter counts generated frames too, so it would cut real frames. Use HaqGen's **FPS cap** (or the game's own limiter) instead: a steady base frame rate gives much cleaner generated frames.
+- **Match your screen:** on the 90 Hz OLED, FPS cap 30 with 3x gives 90, or FPS cap 45 with 2x gives 90 if the game can hold 45.
 - **2x looks cleaner than 3x.** Higher multipliers invent more frames and show more warping during fast camera turns.
 - **Watch the GPU.** If it is near 100%, frame generation competes with the game. Try the *Battery* preset or lower in-game settings.
 - **Turn off the game's own upscaler or frame generation.**
@@ -56,13 +59,14 @@ Verified on a Steam Deck OLED: setup, frame generation at 2x/3x, Off after a gam
 
 ## Troubleshooting
 
-- **Run Health check** (More). It runs `lsfg-vk-cli validate` and `healthcheck` and shows the result.
+- **Run Health check** (Troubleshooting). It runs `lsfg-vk-cli validate` and `healthcheck` and shows the result.
 - **Frame generation does nothing:** check the launch option is exactly `~/haqgen %command%`, Gamescope compatibility is on, and Lossless Scaling is on the `lsfg-vk` branch.
-- **Need details:** turn on **Debug log** (More), restart the game, then use **Show log**. Turn it off again for daily play.
+- **Need details:** turn on **Debug log** (Troubleshooting), restart the game, then use **Show log**. Turn it off again for daily play.
+- **lsfg-vk reports a broken config** (for example after another tool edited it): use **Reset lsfg-vk config**. It saves a backup first.
 
 ## Removing HaqGen
 
-Use **More › Remove plugin data**. It shows the exact list and asks before deleting. Launch options in Steam are not edited; remove `~/haqgen %command%` from your games yourself. Restart running games to fully stop frame generation. Then uninstall HaqGen from Decky.
+Use **Danger zone › Remove plugin data**. It shows the exact list and asks before deleting. Launch options in Steam are not edited; remove `~/haqgen %command%` from your games yourself. Restart running games to fully stop frame generation. Then uninstall HaqGen from Decky.
 
 ## Development
 
