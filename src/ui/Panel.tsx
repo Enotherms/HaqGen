@@ -352,16 +352,14 @@ export function Panel() {
             running={isRunning}
             saved={savedAt !== null}
             picker={
-              <>
-                <ProfilePicker
-                  profiles={profiles}
-                  selected={picked?.app_id ?? null}
-                  locked={null}
-                  onSelect={(entry) => setPicked(entry.app_id === null ? null : entry)}
-                />
-                <CreateProfile games={creatableGames(games, profiles)} onCreate={onCreate} />
-              </>
+              <ProfilePicker
+                profiles={profiles}
+                selected={picked?.app_id ?? null}
+                locked={null}
+                onSelect={(entry) => setPicked(entry.app_id === null ? null : entry)}
+              />
             }
+            create={<CreateProfile games={creatableGames(games, profiles)} onCreate={onCreate} />}
             onMultiplier={onMultiplier}
             onChange={onChange}
             onFpsCap={onFpsCap}

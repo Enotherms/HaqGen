@@ -21,6 +21,7 @@ interface Props {
   running: boolean;
   saved: boolean;
   picker: ReactNode;
+  create: ReactNode;
   onMultiplier: (position: number) => void;
   onChange: (s: Settings) => void;
   onFpsCap: (cap: number) => void;
@@ -29,7 +30,7 @@ interface Props {
 }
 
 export function NowPlaying(props: Props) {
-  const { scope, running, saved, picker, onMultiplier, onChange, onFpsCap, onSaveForGame, onUseDefault } = props;
+  const { scope, running, saved, picker, create, onMultiplier, onChange, onFpsCap, onSaveForGame, onUseDefault } = props;
   const p = scope.profile;
   const info = {
     frameGen: useInfo(S.frameGenInfo),
@@ -51,6 +52,7 @@ export function NowPlaying(props: Props) {
         <>
           {picker}
           <Hint>{summary}</Hint>
+          {create}
         </>
       )}
       <PanelSectionRow>

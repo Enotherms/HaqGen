@@ -1,6 +1,6 @@
 import { DialogButton, Focusable, PanelSectionRow } from "@decky/ui";
 import { CSSProperties, ReactNode } from "react";
-import { FaChevronDown, FaChevronUp } from "react-icons/fa";
+import { FaChevronDown, FaChevronUp, FaInfoCircle } from "react-icons/fa";
 
 export const ACCENT = "#e3a44a";
 export const DANGER = "#d0505a";
@@ -146,11 +146,19 @@ export function ThemeStyle() {
 export function CollapseRow({ label, open, onToggle, danger }: { label: string; open: boolean; onToggle: () => void; danger?: boolean }) {
   return (
     <PanelSectionRow>
-      <div style={{ padding: "3px 0", width: "100%" }}>
+      <div style={{ padding: "6px 0 3px", width: "100%" }}>
         <DialogButton
           onClick={onToggle}
           className={danger ? "haqgen-collapse haqgen-collapse-danger" : "haqgen-collapse"}
-          style={{ ...buttonBase, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 14px" }}
+          style={{
+            ...buttonBase,
+            height: 40,
+            minHeight: 40,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            padding: "0 16px",
+          }}
         >
           <span>{label}</span>
           {open ? <FaChevronUp size={12} aria-hidden /> : <FaChevronDown size={12} aria-hidden />}
@@ -184,9 +192,20 @@ export function TopBar({
           aria-pressed={infoOn}
           onClick={onInfo}
           className={infoOn ? "haqgen-info haqgen-info-on" : "haqgen-info"}
-          style={{ width: "auto", minWidth: 0, height: 28, minHeight: 28, padding: "0 10px", fontSize: 12, flexShrink: 0 }}
+          style={{
+            width: "auto",
+            minWidth: 0,
+            height: 30,
+            minHeight: 30,
+            padding: "0 12px",
+            fontSize: 12,
+            flexShrink: 0,
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+          }}
         >
-          ⓘ {infoLabel}
+          <FaInfoCircle size={12} aria-hidden /> {infoLabel}
         </DialogButton>
       </div>
     </PanelSectionRow>
