@@ -19,12 +19,10 @@ from .install import allowed_roots, install_lsfg_vk, lsfg_present
 from .lsfg_cli import healthcheck, validate_config
 from .locate import (
     find_dll,
-    game_install_dir,
     list_installed_games,
     lossless_branch,
     lossless_on_wrong_branch,
 )
-from .procs import find_game_exe
 from .settings import load_settings, save_settings
 from .launcher import DEFAULT_PROFILE, LAUNCH_OPTION, install_launcher, launcher_path
 from .manifest import execute_removal, load_manifest, plan_removal, record_paths, replace_manifest
@@ -491,16 +489,6 @@ def set_default_preset(paths: Paths, preset: str) -> dict:
     except OSError as exc:
         return _fail(str(exc))
     return {"ok": True}
-
-
-def detect_process(paths: Paths, app_id: int, proc_root: Path = Path("/proc")) -> dict:
-    install_dir = game_install_dir(paths.steam_roots, app_id)
-    if install_dir is None:
-        return _fail("game_not_found")
-    exe = find_game_exe(install_dir, proc_root)
-    if exe is None:
-        return _fail("not_running")
-    return {"ok": True, "exe": exe}
 
 
 def health_check(paths: Paths) -> dict:

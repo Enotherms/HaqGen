@@ -55,20 +55,3 @@ def test_no_libraries_returns_empty(tmp_path):
 def test_duplicate_app_in_two_roots_listed_once(tmp_path):
     manifest(tmp_path, 3, "Once")
     assert list_installed_games([tmp_path, tmp_path]) == [{"app_id": 3, "name": "Once"}]
-
-
-def test_game_install_dir_from_manifest(tmp_path):
-    d = tmp_path / "steamapps"
-    d.mkdir()
-    (d / "appmanifest_5.acf").write_text(
-        '"AppState"\n{\n"appid" "5"\n"name" "Five"\n"installdir" "Five Dir"\n}\n', encoding="utf-8"
-    )
-    from haqgen.locate import game_install_dir
-
-    assert game_install_dir([tmp_path], 5) == tmp_path / "steamapps" / "common" / "Five Dir"
-
-
-def test_game_install_dir_missing(tmp_path):
-    from haqgen.locate import game_install_dir
-
-    assert game_install_dir([tmp_path], 5) is None

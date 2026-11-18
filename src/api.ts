@@ -64,9 +64,6 @@ export interface HealthResult {
   details: string;
 }
 
-export const detectProcess = callable<[number], { ok: boolean; exe?: string; error?: string }>(
-  "detect_process"
-);
 export const getSettings = callable<[], { default_preset: string }>("get_settings");
 export const setDefaultPreset = callable<[string], Result>("set_default_preset");
 export const healthCheck = callable<[], HealthResult>("health_check");

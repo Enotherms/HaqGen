@@ -90,7 +90,6 @@ def test_new_methods_exist_and_run(plugin_module):
     assert asyncio.run(p.get_settings())["default_preset"] == "balanced"
     assert asyncio.run(p.set_default_preset("quality"))["ok"] is True
     assert asyncio.run(p.health_check())["ok"] is False
-    assert asyncio.run(p.detect_process(1))["ok"] is False
 
 
 def test_list_profiles_method(plugin_module):

@@ -267,25 +267,6 @@ def _game(tmp_path, app_id=5, installdir="Five Dir"):
     )
 
 
-def test_detect_process_returns_exe(paths, tmp_path):
-    _game(tmp_path)
-    p = tmp_path / "proc" / "42"
-    p.mkdir(parents=True)
-    (p / "cmdline").write_bytes(b"Z:\\x\\steamapps\\common\\Five Dir\\five.exe\0")
-    r = service.detect_process(paths, 5, proc_root=tmp_path / "proc")
-    assert r == {"ok": True, "exe": "five.exe"}
-
-
-def test_detect_process_not_running(paths, tmp_path):
-    _game(tmp_path)
-    r = service.detect_process(paths, 5, proc_root=tmp_path / "proc")
-    assert r == {"ok": False, "error": "not_running"}
-
-
-def test_detect_process_game_not_found(paths, tmp_path):
-    assert service.detect_process(paths, 99, proc_root=tmp_path)["error"] == "game_not_found"
-
-
 def test_set_default_preset_rejects_unknown(paths):
     assert service.set_default_preset(paths, "turbo")["ok"] is False
     assert service.get_settings(paths)["default_preset"] == "balanced"

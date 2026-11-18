@@ -107,9 +107,6 @@ class Plugin:
     async def reset_lsfg_config(self) -> dict:
         return await _call(service.reset_lsfg_config, _paths())
 
-    async def detect_process(self, app_id: int) -> dict:
-        return await _read(service.detect_process, _paths(), app_id)
-
     async def get_settings(self) -> dict:
         return await _read(service.get_settings, _paths())
 
