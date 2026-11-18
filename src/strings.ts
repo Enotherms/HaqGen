@@ -63,7 +63,7 @@ export const S = {
   flatpakNone: "No Flatpak apps installed.",
   flatpakMissing: "Flatpak was not found on this Deck.",
   flatpakUnsupported: "Runtime not supported",
-  flatpakInstalling: "Installing for Flatpak, may take a minute...",
+  flatpakInstalling: "Installing for Flatpak (about a minute). Other changes apply when it finishes.",
   troubleshooting: "Troubleshooting",
   dangerZone: "Danger zone",
   healthCheck: "Health check",

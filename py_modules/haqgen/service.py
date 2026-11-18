@@ -544,7 +544,7 @@ def save_default(paths: Paths, settings: dict) -> dict:
     return {"ok": True, "profile": _profile_dict(profile, True)}
 
 
-def set_enabled(paths: Paths, app_id: int | None, enabled: bool) -> dict:
+def set_enabled(paths: Paths, app_id: int | None, enabled: bool, run=None) -> dict:
     try:
         app_id = _scope_id(app_id)
         marker = _games(paths) / _marker(paths, app_id, "off").name
@@ -552,6 +552,8 @@ def set_enabled(paths: Paths, app_id: int | None, enabled: bool) -> dict:
             marker.unlink(missing_ok=True)
         else:
             _write_marker(marker, "")
+        if app_id is None:
+            _sync_flatpak(paths)
     except (OSError, ValueError) as exc:
         return _fail(str(exc))
     return {"ok": True}
@@ -574,7 +576,7 @@ def list_profiles(paths: Paths) -> list[dict]:
     return entries + sorted(games, key=lambda g: g["label"].lower())
 
 
-def set_gamescope_compat(paths: Paths, app_id: int | None, on: bool) -> dict:
+def set_gamescope_compat(paths: Paths, app_id: int | None, on: bool, run=None) -> dict:
     """On (default) makes the launcher set ENABLE_GAMESCOPE_WSI=0; off leaves Gamescope's layer alone."""
     try:
         app_id = _scope_id(app_id)
@@ -583,6 +585,8 @@ def set_gamescope_compat(paths: Paths, app_id: int | None, on: bool) -> dict:
             marker.unlink(missing_ok=True)
         else:
             _write_marker(marker, "")
+        if app_id is None:
+            _sync_flatpak(paths)
     except (OSError, ValueError) as exc:
         return _fail(str(exc))
     return {"ok": True}
@@ -646,10 +650,14 @@ def _load_flatpak(paths: Paths) -> dict:
     try:
         data = json.loads(_flatpak_state_file(paths).read_text(encoding="utf-8"))
         if isinstance(data, dict):
-            return {"owned_branches": list(data.get("owned_branches", [])), "apps": dict(data.get("apps", {}))}
+            return {
+                "owned_branches": list(data.get("owned_branches", [])),
+                "apps": dict(data.get("apps", {})),
+                "added_remote": bool(data.get("added_remote", False)),
+            }
     except (OSError, ValueError):
         pass
-    return {"owned_branches": [], "apps": {}}
+    return {"owned_branches": [], "apps": {}, "added_remote": False}
 
 
 def _save_flatpak(paths: Paths, state: dict) -> None:
@@ -672,11 +680,13 @@ def flatpak_state(paths: Paths, run=None) -> dict:
 
 def _wanted_overrides(paths: Paths) -> dict:
     dll = find_dll(paths.steam_roots)
-    filesystems = [f"{paths.config_path.parent}:rw"]
+    filesystems = [f"{paths.config_path.parent}:ro"]
     if dll is not None:
         filesystems.append(f"{dll.parent}:ro")
     env = {"LSFGVK_CONFIG": str(paths.config_path), "LSFGVK_PROFILE": DEFAULT_PROFILE}
-    if not _marker(paths, None, "gamescope-wsi").exists():
+    if _marker(paths, None, "off").exists():
+        env["DISABLE_LSFGVK"] = "1"
+    elif not _marker(paths, None, "gamescope-wsi").exists():
         env["ENABLE_GAMESCOPE_WSI"] = "0"
     return {"filesystems": filesystems, "env": env}
 
@@ -704,6 +714,11 @@ def flatpak_set(paths: Paths, app_id, on: bool, run=None) -> dict:
         if not app["supported"]:
             return _fail("flatpak_runtime_unsupported")
         if app["branch"] not in fp.installed_branches(run):
+            if not fp.has_user_remote(run):
+                if not fp.add_user_remote(run).ok:
+                    return _fail("flatpak_install_failed")
+                state["added_remote"] = True
+                _save_flatpak(paths, state)
             result = fp.install_extension(run, app["branch"])
             if not result.ok:
                 return {"ok": False, "error": "flatpak_install_failed", "detail": (result.stderr or result.stdout).strip()[:300]}
@@ -717,7 +732,7 @@ def flatpak_set(paths: Paths, app_id, on: bool, run=None) -> dict:
 
 def _remove_flatpak(paths: Paths, run=None) -> None:
     state = _load_flatpak(paths)
-    if not state["apps"] and not state["owned_branches"]:
+    if not state["apps"] and not state["owned_branches"] and not state["added_remote"]:
         return
     run = _runner(paths, run)
     for app_id, added in list(state["apps"].items()):
@@ -730,4 +745,18 @@ def _remove_flatpak(paths: Paths, run=None) -> None:
             fp.uninstall_extension(run, branch)
         except ValueError:
             pass
+    if state["added_remote"] and not fp.user_refs_from_flathub(run):
+        fp.remove_user_remote(run)
     _flatpak_state_file(paths).unlink(missing_ok=True)
+
+
+def _sync_flatpak(paths: Paths) -> None:
+    """Re-applies Default's Off and Gamescope settings to every Flatpak app HaqGen manages."""
+    state = _load_flatpak(paths)
+    if not state["apps"]:
+        return
+    wanted = _wanted_overrides(paths)
+    for app_id, added in list(state["apps"].items()):
+        fp.disable_overrides(paths.home(), app_id, added)
+        state["apps"][app_id] = fp.enable_overrides(paths.home(), app_id, wanted)
+    _save_flatpak(paths, state)

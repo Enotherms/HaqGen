@@ -7,7 +7,6 @@ added itself, so the user's own Flatpak permissions are kept.
 from __future__ import annotations
 
 import configparser
-import io
 import os
 import re
 from pathlib import Path
@@ -118,9 +117,26 @@ def installed_branches(run: Runner) -> set[str]:
     return branches
 
 
+def has_user_remote(run: Runner) -> bool:
+    result = run(["flatpak", "remotes", "--user", "--columns=name"], 30)
+    return result.ok and "flathub" in {line.strip() for line in result.stdout.splitlines()}
+
+
+def add_user_remote(run: Runner) -> RunResult:
+    return run(["flatpak", "remote-add", "--user", "--if-not-exists", "flathub", FLATHUB_URL], 60)
+
+
+def user_refs_from_flathub(run: Runner) -> bool:
+    result = run(["flatpak", "list", "--user", "--columns=origin"], 30)
+    return result.ok and "flathub" in {line.strip() for line in result.stdout.splitlines()}
+
+
+def remove_user_remote(run: Runner) -> RunResult:
+    return run(["flatpak", "remote-delete", "--user", "flathub"], 60)
+
+
 def install_extension(run: Runner, branch: str) -> RunResult:
     branch = _valid_branch(branch)
-    run(["flatpak", "remote-add", "--user", "--if-not-exists", "flathub", FLATHUB_URL], 60)
     return run(["flatpak", "install", "--user", "--noninteractive", "-y", "flathub", f"{EXTENSION_ID}//{branch}"], 600)
 
 
@@ -135,24 +151,64 @@ def override_path(home, app_id: str) -> Path:
     return Path(home) / ".local" / "share" / "flatpak" / "overrides" / valid_app_id(app_id)
 
 
-def _parser() -> configparser.ConfigParser:
-    parser = configparser.ConfigParser(interpolation=None, strict=False, delimiters=("=",))
-    parser.optionxform = str
-    return parser
+def _section_range(lines: list[str], name: str) -> tuple[int, int] | None:
+    start = next((i for i, l in enumerate(lines) if l.strip() == f"[{name}]"), None)
+    if start is None:
+        return None
+    end = next((i for i in range(start + 1, len(lines)) if lines[i].strip().startswith("[")), len(lines))
+    return start, end
 
 
-def _load(path: Path) -> configparser.ConfigParser:
-    parser = _parser()
-    if path.exists():
-        parser.read_string(path.read_text(encoding="utf-8"))
-    return parser
+def _key_index(lines: list[str], section: str, key: str) -> int | None:
+    rng = _section_range(lines, section)
+    if rng is None:
+        return None
+    for i in range(rng[0] + 1, rng[1]):
+        if lines[i].split("=", 1)[0].strip() == key and "=" in lines[i] and not lines[i].lstrip().startswith("#"):
+            return i
+    return None
 
 
-def _save(path: Path, parser: configparser.ConfigParser) -> None:
-    out = io.StringIO()
-    parser.write(out, space_around_delimiters=False)
+def _get(lines: list[str], section: str, key: str) -> str | None:
+    i = _key_index(lines, section, key)
+    return None if i is None else lines[i].split("=", 1)[1]
+
+
+def _set(lines: list[str], section: str, key: str, value: str) -> None:
+    i = _key_index(lines, section, key)
+    if i is not None:
+        lines[i] = f"{key}={value}"
+        return
+    rng = _section_range(lines, section)
+    if rng is None:
+        if lines and lines[-1].strip():
+            lines.append("")
+        lines.extend([f"[{section}]", f"{key}={value}"])
+        return
+    insert = rng[1]
+    while insert > rng[0] + 1 and not lines[insert - 1].strip():
+        insert -= 1
+    lines.insert(insert, f"{key}={value}")
+
+
+def _unset(lines: list[str], section: str, key: str) -> None:
+    i = _key_index(lines, section, key)
+    if i is not None:
+        del lines[i]
+    rng = _section_range(lines, section)
+    if rng and not any(l.strip() for l in lines[rng[0] + 1 : rng[1]]):
+        del lines[rng[0] : rng[1]]
+        while lines and not lines[-1].strip():
+            lines.pop()
+
+
+def _read(path: Path) -> list[str]:
+    return path.read_text(encoding="utf-8").splitlines() if path.exists() else []
+
+
+def _write(path: Path, lines: list[str]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    atomic_write(path, out.getvalue())
+    atomic_write(path, "\n".join(lines) + "\n")
 
 
 def _check(value: str, filesystem: bool = False) -> str:
@@ -167,24 +223,20 @@ def enable_overrides(home, app_id: str, wanted: dict) -> dict:
     filesystems = [_check(f, filesystem=True) for f in wanted.get("filesystems", [])]
     env = {_check(k, filesystem=True): _check(v) for k, v in wanted.get("env", {}).items()}
     created = not path.exists()
-    parser = _load(path)
+    lines = _read(path)
     added: dict = {"filesystems": [], "env": {}}
-    current = [f for f in parser.get("Context", "filesystems", fallback="").split(";") if f]
+    current = [f for f in (_get(lines, "Context", "filesystems") or "").split(";") if f]
     for f in filesystems:
         if f not in current:
             current.append(f)
             added["filesystems"].append(f)
-    if current:
-        if not parser.has_section("Context"):
-            parser.add_section("Context")
-        parser.set("Context", "filesystems", ";".join(current) + ";")
+    if added["filesystems"]:
+        _set(lines, "Context", "filesystems", ";".join(current) + ";")
     for key, value in env.items():
-        if not parser.has_section("Environment"):
-            parser.add_section("Environment")
-        if parser.get("Environment", key, fallback=None) != value:
-            parser.set("Environment", key, value)
+        if _get(lines, "Environment", key) != value:
+            _set(lines, "Environment", key, value)
             added["env"][key] = value
-    _save(path, parser)
+    _write(path, lines)
     if created:
         added["created"] = True
     return added
@@ -194,21 +246,17 @@ def disable_overrides(home, app_id: str, added: dict) -> None:
     path = override_path(home, app_id)
     if not path.exists():
         return
-    parser = _load(path)
-    if parser.has_section("Context"):
-        kept = [f for f in parser.get("Context", "filesystems", fallback="").split(";") if f and f not in added.get("filesystems", [])]
+    lines = _read(path)
+    current = (_get(lines, "Context", "filesystems") or "")
+    if current:
+        kept = [f for f in current.split(";") if f and f not in added.get("filesystems", [])]
         if kept:
-            parser.set("Context", "filesystems", ";".join(kept) + ";")
+            _set(lines, "Context", "filesystems", ";".join(kept) + ";")
         else:
-            parser.remove_option("Context", "filesystems")
-        if not parser.options("Context"):
-            parser.remove_section("Context")
-    if parser.has_section("Environment"):
-        for key in added.get("env", {}):
-            parser.remove_option("Environment", key)
-        if not parser.options("Environment"):
-            parser.remove_section("Environment")
-    if added.get("created") and not parser.sections():
+            _unset(lines, "Context", "filesystems")
+    for key in added.get("env", {}):
+        _unset(lines, "Environment", key)
+    if added.get("created") and not any(l.strip() for l in lines):
         path.unlink(missing_ok=True)
     else:
-        _save(path, parser)
+        _write(path, lines)

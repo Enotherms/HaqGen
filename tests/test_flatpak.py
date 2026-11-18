@@ -9,8 +9,8 @@ from haqgen.run import RunResult
 class FakeFlatpak:
     """Answers flatpak commands from a table and records every call."""
 
-    def __init__(self, apps="", runtimes="", metadata=None, fail=()):
-        self.apps, self.runtimes = apps, runtimes
+    def __init__(self, apps="", runtimes="", metadata=None, fail=(), remotes="flathub\n"):
+        self.apps, self.runtimes, self.remotes = apps, runtimes, remotes
         self.metadata = metadata or {}
         self.fail = set(fail)
         self.calls = []
@@ -26,6 +26,8 @@ class FakeFlatpak:
             return RunResult(True, 0, self.apps, "", False)
         if sub == "list" and "--runtime" in cmd:
             return RunResult(True, 0, self.runtimes, "", False)
+        if sub == "remotes":
+            return RunResult(True, 0, getattr(self, "remotes", ""), "", False)
         if sub == "info":
             return RunResult(True, 0, self.metadata.get(cmd[-1], ""), "", False)
         return RunResult(True, 0, "", "", False)
@@ -67,7 +69,6 @@ def test_installed_branches():
 def test_install_extension_uses_user_flathub_and_validates_branch():
     run = FakeFlatpak()
     assert fp.install_extension(run, "24.08").ok
-    assert ["flatpak", "remote-add", "--user", "--if-not-exists", "flathub", fp.FLATHUB_URL] in run.calls
     assert ["flatpak", "install", "--user", "--noninteractive", "-y", "flathub", f"{fp.EXTENSION_ID}//24.08"] in run.calls
     with pytest.raises(ValueError):
         fp.install_extension(run, "24.08; rm -rf /")
@@ -124,3 +125,32 @@ def test_clean_env_drops_library_overrides(monkeypatch):
     env = fp.clean_env("/home/deck")
     assert "LD_LIBRARY_PATH" not in env and "LD_PRELOAD" not in env
     assert env["HOME"] == "/home/deck"
+
+
+def test_comments_and_other_sections_survive_enable_and_disable(tmp_path):
+    app = "org.DolphinEmu.dolphin-emu"
+    path = fp.override_path(tmp_path, app)
+    path.parent.mkdir(parents=True)
+    original = (
+        "# my note about this app\n[Context]\nfilesystems=/home/deck/Games:ro;\nshared=network;\n\n"
+        "[Session Bus Policy]\norg.freedesktop.Notifications=talk\n"
+    )
+    path.write_text(original, encoding="utf-8")
+    added = fp.enable_overrides(tmp_path, app, {"filesystems": ["/x y:ro"], "env": {"A": "1"}})
+    text = path.read_text(encoding="utf-8")
+    assert "# my note about this app" in text and "shared=network;" in text
+    assert "filesystems=/home/deck/Games:ro;/x y:ro;" in text
+    fp.disable_overrides(tmp_path, app, added)
+    assert path.read_text(encoding="utf-8") == original
+
+
+def test_user_remote_helpers():
+    run = FakeFlatpak()
+    run.remotes = "flathub\n"
+    assert fp.has_user_remote(run) is True
+    run.remotes = "other\n"
+    assert fp.has_user_remote(run) is False
+    fp.add_user_remote(run)
+    assert ["flatpak", "remote-add", "--user", "--if-not-exists", "flathub", fp.FLATHUB_URL] in run.calls
+    fp.remove_user_remote(run)
+    assert ["flatpak", "remote-delete", "--user", "flathub"] in run.calls

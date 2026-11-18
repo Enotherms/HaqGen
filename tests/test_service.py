@@ -756,8 +756,8 @@ DOLPHIN = "org.DolphinEmu.dolphin-emu"
 HEROIC = "com.heroicgameslauncher.hgl"
 
 
-def fake(installed=""):
-    return FakeFlatpak(apps=APPS, runtimes=installed, metadata={"org.kde.Platform//6.8": KDE_META})
+def fake(installed="", remotes="flathub\n"):
+    return FakeFlatpak(apps=APPS, runtimes=installed, metadata={"org.kde.Platform//6.8": KDE_META}, remotes=remotes)
 
 
 def test_flatpak_state_lists_apps_with_enabled_flag(paths):
@@ -780,7 +780,7 @@ def test_flatpak_enable_installs_missing_extension_and_adds_overrides(paths, tmp
     assert r["ok"] is True, r
     assert ["flatpak", "install", "--user", "--noninteractive", "-y", "flathub", f"{fp.EXTENSION_ID}//25.08"] in run.calls
     text = fp.override_path(paths.home(), DOLPHIN).read_text()
-    assert f"{paths.config_path.parent}:rw" in text
+    assert f"{paths.config_path.parent}:ro" in text and ":rw" not in text
     assert f"{dll.parent}:ro" in text
     assert "LSFGVK_PROFILE=HaqGen Default" in text and "LSFGVK_CONFIG=" in text
     assert service.flatpak_state(paths, run=fake())["apps"][0]["enabled"] is True
@@ -835,3 +835,34 @@ def test_removal_preview_lists_flatpak_changes(paths):
     pv = service.removal_preview(paths)
     assert pv["flatpak_apps"] == [DOLPHIN]
     assert pv["flatpak_extensions"] == ["25.08"]
+
+
+def test_default_off_and_gamescope_reach_flatpak_apps(paths):
+    run = fake()
+    service.flatpak_set(paths, DOLPHIN, True, run=run)
+    path = fp.override_path(paths.home(), DOLPHIN)
+    assert "DISABLE_LSFGVK" not in path.read_text() and "ENABLE_GAMESCOPE_WSI=0" in path.read_text()
+    service.set_enabled(paths, None, False, run=run)
+    assert "DISABLE_LSFGVK=1" in path.read_text()
+    service.set_enabled(paths, None, True, run=run)
+    assert "DISABLE_LSFGVK" not in path.read_text()
+    service.set_gamescope_compat(paths, None, False, run=run)
+    assert "ENABLE_GAMESCOPE_WSI" not in path.read_text()
+    service.flatpak_set(paths, DOLPHIN, False, run=run)
+    assert not path.exists()
+
+
+def test_flathub_user_remote_added_and_removed_only_by_haqgen(paths):
+    run = fake(remotes="")
+    service.flatpak_set(paths, DOLPHIN, True, run=run)
+    assert ["flatpak", "remote-add", "--user", "--if-not-exists", "flathub", fp.FLATHUB_URL] in run.calls
+    service.remove_all(paths, confirmed=True, run=run)
+    assert ["flatpak", "remote-delete", "--user", "flathub"] in run.calls
+
+
+def test_existing_flathub_remote_is_never_removed(paths):
+    run = fake(remotes="flathub\n")
+    service.flatpak_set(paths, DOLPHIN, True, run=run)
+    service.remove_all(paths, confirmed=True, run=run)
+    assert not any(c[:2] == ["flatpak", "remote-add"] for c in run.calls)
+    assert not any(c[:2] == ["flatpak", "remote-delete"] for c in run.calls)
