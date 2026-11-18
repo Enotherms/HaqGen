@@ -75,15 +75,10 @@ describe("RESTART notes", () => {
 });
 
 describe("frameLimitTip", () => {
-  it("points at the in-game limiter, not Steam's", () => {
-    expect(frameLimitTip(2)).toBe(
-      "Tip: leave Steam's frame limit off. Cap the game at 45 FPS in its own settings for 2x on your 90 Hz screen, and turn off its own upscaler or frame generation."
-    );
-    expect(frameLimitTip(3)).toContain("Cap the game at 30 FPS");
-    expect(frameLimitTip(4)).toContain("Cap the game at 22 FPS");
-  });
-  it("uses another refresh rate when given", () => {
-    expect(frameLimitTip(2, 60)).toContain("Cap the game at 30 FPS in its own settings for 2x on your 60 Hz screen");
+  it("is short and points at the in-game cap", () => {
+    expect(frameLimitTip(2)).toBe("Tip: cap the game at 45 FPS for 2x on 90 Hz.");
+    expect(frameLimitTip(3)).toBe("Tip: cap the game at 30 FPS for 3x on 90 Hz.");
+    expect(frameLimitTip(4, 60)).toBe("Tip: cap the game at 15 FPS for 4x on 60 Hz.");
   });
 });
 
@@ -204,11 +199,10 @@ describe("branchMessage", () => {
 });
 
 describe("layersWarning", () => {
-  it("names other Vulkan layers in plain words", () => {
+  it("names other Vulkan layers in one short line", () => {
     expect(layersWarning([])).toBeNull();
-    expect(layersWarning(["VkLayer_MAKO_render", "vkBasalt"])).toBe(
-      "Other Vulkan layers are installed (MAKO, vkBasalt). If frame generation misbehaves, disable them while using HaqGen."
-    );
+    expect(layersWarning(["VkLayer_MAKO_render"])).toBe("MAKO layer found. It may interfere.");
+    expect(layersWarning(["VkLayer_MAKO_render", "vkBasalt"])).toBe("MAKO, vkBasalt layers found. They may interfere.");
   });
 });
 
@@ -231,5 +225,13 @@ describe("debounce flush", () => {
     const d = debounce(fn, 300);
     d.flush();
     expect(fn).not.toHaveBeenCalled();
+  });
+});
+
+import { FPS_CAPS } from "./logic";
+
+describe("FPS cap choices", () => {
+  it("offers Off and common caps", () => {
+    expect(FPS_CAPS).toEqual([0, 30, 40, 45, 60]);
   });
 });

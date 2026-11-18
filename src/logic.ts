@@ -88,9 +88,10 @@ export const RESTART = {
 export const PRESET_ORDER = ["battery", "balanced", "quality"] as const;
 
 export function frameLimitTip(multiplier: number, refreshHz = 90): string {
-  const limit = Math.floor(refreshHz / multiplier);
-  return `Tip: leave Steam's frame limit off. Cap the game at ${limit} FPS in its own settings for ${multiplier}x on your ${refreshHz} Hz screen, and turn off its own upscaler or frame generation.`;
+  return `Tip: cap the game at ${Math.floor(refreshHz / multiplier)} FPS for ${multiplier}x on ${refreshHz} Hz.`;
 }
+
+export const FPS_CAPS = [0, 30, 40, 45, 60] as const;
 
 export function summaryLine(p: {
   multiplier: number;
@@ -184,5 +185,7 @@ const LAYER_NAMES: Record<string, string> = { VkLayer_MAKO_render: "MAKO" };
 export function layersWarning(layers: string[]): string | null {
   if (layers.length === 0) return null;
   const names = layers.map((l) => LAYER_NAMES[l] ?? l.replace(/^VkLayer_/, ""));
-  return `Other Vulkan layers are installed (${names.join(", ")}). If frame generation misbehaves, disable them while using HaqGen.`;
+  return names.length === 1
+    ? `${names[0]} layer found. It may interfere.`
+    : `${names.join(", ")} layers found. They may interfere.`;
 }

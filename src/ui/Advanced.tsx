@@ -17,9 +17,11 @@ export function Advanced({
 }) {
   const flowInfo = useInfo(S.flowScaleInfo);
   const perfInfo = useInfo(S.perfModelInfo);
+  const gsInfo = useInfo(S.gamescopeNote);
+  const hint = useInfo(S.advancedHint);
   return (
     <>
-      <Hint>{S.advancedHint}</Hint>
+      {hint && <Hint>{hint}</Hint>}
       <PanelSectionRow>
         <SliderField
           label={S.flowScale}
@@ -33,7 +35,7 @@ export function Advanced({
         />
       </PanelSectionRow>
       <PanelSectionRow>
-        <ToggleField label={S.gamescope} description={S.gamescopeNote} checked={gamescope} onChange={onGamescope} />
+        <ToggleField label={S.gamescope} description={gsInfo} checked={gamescope} onChange={onGamescope} />
       </PanelSectionRow>
       <PanelSectionRow>
         <ToggleField

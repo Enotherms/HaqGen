@@ -647,3 +647,27 @@ def test_reset_lsfg_config_without_existing_file(paths):
     r = service.reset_lsfg_config(paths)
     assert r["ok"] is True and r["backup"] is None
     assert [p.name for p in load_config(paths.config_path).profiles] == ["HaqGen Default"]
+
+
+def test_fps_cap_set_get_and_clear(paths):
+    assert service.get_scope(paths, None, None)["fps_cap"] == 0
+    assert service.set_fps_cap(paths, None, 30)["ok"] is True
+    assert (games_dir(paths) / "default.fpscap").read_text().strip() == "30"
+    assert service.get_scope(paths, None, None)["fps_cap"] == 30
+    assert service.set_fps_cap(paths, None, 0)["ok"] is True
+    assert not (games_dir(paths) / "default.fpscap").exists()
+
+
+@pytest.mark.parametrize("bad", [5, 1000, -1, "30; rm", 30.5, None, True])
+def test_fps_cap_rejects_bad_values(paths, bad):
+    assert service.set_fps_cap(paths, None, bad)["ok"] is False
+    assert not (games_dir(paths) / "default.fpscap").exists()
+
+
+def test_fps_cap_per_game_and_removed_with_profile(paths):
+    service.save_profile(paths, 7, "G", {})
+    service.set_fps_cap(paths, 7, 45)
+    assert service.get_scope(paths, 7, "G")["fps_cap"] == 45
+    assert service.get_scope(paths, None, None)["fps_cap"] == 0
+    service.delete_profile(paths, 7, "G")
+    assert not (games_dir(paths) / "7.fpscap").exists()

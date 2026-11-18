@@ -36,6 +36,8 @@ from .presets import (
 )
 
 PROFILE_PREFIX = "HaqGen "
+MARKER_SUFFIXES = ("profile", "off", "gamescope-wsi", "fpscap")
+FPS_CAP_RANGE = (10, 240)
 
 
 @dataclass
@@ -233,7 +235,7 @@ def _self_repair(paths: Paths, cfg: Config, dll: Path | None) -> None:
                 continue
             if name not in names:
                 game_id = marker.name[: -len(".profile")]
-                for suffix in ("profile", "off", "gamescope-wsi"):
+                for suffix in MARKER_SUFFIXES:
                     (d / f"{game_id}.{suffix}").unlink(missing_ok=True)
 
 
@@ -409,7 +411,7 @@ def delete_profile(paths: Paths, app_id: int, game_name: str) -> dict:
         if paths.config_path.exists():
             cfg = load_config(paths.config_path)
             save_config(paths.config_path, remove_profile(cfg, profile_name(app_id, game_name)))
-        for suffix in ("profile", "off", "gamescope-wsi"):
+        for suffix in MARKER_SUFFIXES:
             _marker(paths, app_id, suffix).unlink(missing_ok=True)
     except (ConfigError, OSError) as exc:
         return _fail(str(exc))
@@ -479,6 +481,7 @@ def get_scope(paths: Paths, app_id: int | None, game_name: str | None) -> dict:
         "profile": _profile_dict(profile, True),
         "enabled": not _marker(paths, marker_id, "off").exists(),
         "gamescope_compat": not _marker(paths, marker_id, "gamescope-wsi").exists(),
+        "fps_cap": _read_fps_cap(_marker(paths, marker_id, "fpscap")),
         "error": error,
     }
 
@@ -549,3 +552,28 @@ def reset_lsfg_config(paths: Paths) -> dict:
     except OSError as exc:
         return _fail(str(exc))
     return {"ok": True, "backup": str(backup) if backup else None}
+
+
+def _read_fps_cap(path: Path) -> int:
+    try:
+        text = path.read_text(encoding="utf-8").strip()
+    except OSError:
+        return 0
+    return int(text) if text.isdigit() and FPS_CAP_RANGE[0] <= int(text) <= FPS_CAP_RANGE[1] else 0
+
+
+def set_fps_cap(paths: Paths, app_id: int | None, cap) -> dict:
+    """Base FPS cap applied by the launcher at game start; 0 removes it."""
+    if isinstance(cap, bool) or not isinstance(cap, int):
+        return _fail("FPS cap must be a whole number")
+    if cap != 0 and not FPS_CAP_RANGE[0] <= cap <= FPS_CAP_RANGE[1]:
+        return _fail(f"FPS cap must be between {FPS_CAP_RANGE[0]} and {FPS_CAP_RANGE[1]}")
+    try:
+        marker = _games(paths) / _marker(paths, app_id, "fpscap").name
+        if cap == 0:
+            marker.unlink(missing_ok=True)
+        else:
+            _write_marker(marker, f"{cap}\n")
+    except OSError as exc:
+        return _fail(str(exc))
+    return {"ok": True}

@@ -131,3 +131,43 @@ def test_gamescope_compat_not_applied_when_frame_generation_is_off(setup):
     (games / "5.off").write_text("")
     r = run_launcher(script, home, SteamAppId="5")
     assert r["disabled"] == "1" and r["wsi"] == "unset"
+
+
+CAP = 'printf "%s|%s|%s" "${VKD3D_FRAME_RATE-unset}" "${DXVK_FRAME_RATE-unset}" "${DXVK_CONFIG-unset}"'
+
+
+def run_cap(script, home, **env_extra):
+    env = {"HOME": str(home), "PATH": os.environ["PATH"], **env_extra}
+    out = subprocess.run([str(script), "sh", "-c", CAP], env=env, capture_output=True, text=True, timeout=10)
+    vkd3d, dxvk_rate, dxvk_cfg = out.stdout.split("|")
+    return vkd3d, dxvk_rate, dxvk_cfg
+
+
+def test_fps_cap_not_set_by_default(setup):
+    home, script, games = setup
+    assert run_cap(script, home, SteamAppId="9") == ("unset", "unset", "unset")
+
+
+def test_fps_cap_sets_vkd3d_and_dxvk(setup):
+    home, script, games = setup
+    (games / "default.fpscap").write_text("30\n")
+    vkd3d, rate, cfg = run_cap(script, home, SteamAppId="9")
+    assert vkd3d == "30" and rate == "30"
+    assert cfg == "dxgi.maxFrameRate = 30; d3d9.maxFrameRate = 30; dxvk.maxFrameRate = 30"
+
+
+def test_fps_cap_appends_to_existing_dxvk_config(setup):
+    home, script, games = setup
+    (games / "default.fpscap").write_text("45")
+    _, _, cfg = run_cap(script, home, SteamAppId="9", DXVK_CONFIG="dxgi.hideAmdGpu = True")
+    assert cfg == "dxgi.hideAmdGpu = True; dxgi.maxFrameRate = 45; d3d9.maxFrameRate = 45; dxvk.maxFrameRate = 45"
+
+
+def test_fps_cap_uses_game_scope_and_ignores_garbage(setup):
+    home, script, games = setup
+    (games / "default.fpscap").write_text("30")
+    (games / "5.profile").write_text("HaqGen 5 Own")
+    (games / "5.fpscap").write_text("60")
+    assert run_cap(script, home, SteamAppId="5")[0] == "60"
+    (games / "5.fpscap").write_text("$(touch /tmp/pwned)")
+    assert run_cap(script, home, SteamAppId="5") == ("unset", "unset", "unset")

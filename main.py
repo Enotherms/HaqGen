@@ -80,6 +80,9 @@ class Plugin:
     async def set_gamescope_compat(self, app_id, on: bool) -> dict:
         return await _call(service.set_gamescope_compat, _paths(), app_id, on)
 
+    async def set_fps_cap(self, app_id, cap) -> dict:
+        return await _call(service.set_fps_cap, _paths(), app_id, cap)
+
     async def set_enabled(self, app_id, enabled: bool) -> dict:
         return await _call(service.set_enabled, _paths(), app_id, enabled)
 

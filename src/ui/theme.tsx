@@ -133,8 +133,62 @@ const CSS = `
 .haqgen-seg { border: 1px solid transparent !important; }
 .haqgen-seg-active { background: #6b4713 !important; color: #ffffff !important; border-color: ${ACCENT} !important; }
 .haqgen-seg-active.gpfocus { background: ${ACCENT} !important; color: #1b1306 !important; }
+.haqgen-info-on { background: #6b4713 !important; color: #ffffff !important; }
+.haqgen-info-on.gpfocus { background: ${ACCENT} !important; color: #1b1306 !important; }
+.haqgen-collapse-danger { color: #ffb3b8 !important; }
+.haqgen-collapse-danger.gpfocus { color: #1b0507 !important; }
 `;
 
 export function ThemeStyle() {
   return <style>{CSS}</style>;
+}
+
+export function CollapseRow({ label, open, onToggle, danger }: { label: string; open: boolean; onToggle: () => void; danger?: boolean }) {
+  return (
+    <PanelSectionRow>
+      <div style={{ padding: "3px 0", width: "100%" }}>
+        <DialogButton
+          onClick={onToggle}
+          className={danger ? "haqgen-collapse haqgen-collapse-danger" : "haqgen-collapse"}
+          style={{ ...buttonBase, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 14px" }}
+        >
+          <span>{label}</span>
+          {open ? <FaChevronUp size={12} aria-hidden /> : <FaChevronDown size={12} aria-hidden />}
+        </DialogButton>
+      </div>
+    </PanelSectionRow>
+  );
+}
+
+export function TopBar({
+  status,
+  warning,
+  infoOn,
+  onInfo,
+  infoLabel,
+}: {
+  status: string;
+  warning: string | null;
+  infoOn: boolean;
+  onInfo: () => void;
+  infoLabel: string;
+}) {
+  return (
+    <PanelSectionRow>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, width: "100%" }}>
+        <div style={{ fontSize: 12, lineHeight: 1.3, minWidth: 0 }}>
+          <span style={{ color: "#8fd694", fontWeight: 600 }}>✓ {status}</span>
+          {warning && <div style={{ color: ACCENT }}>⚠ {warning}</div>}
+        </div>
+        <DialogButton
+          aria-pressed={infoOn}
+          onClick={onInfo}
+          className={infoOn ? "haqgen-info haqgen-info-on" : "haqgen-info"}
+          style={{ width: "auto", minWidth: 0, height: 28, minHeight: 28, padding: "0 10px", fontSize: 12, flexShrink: 0 }}
+        >
+          ⓘ {infoLabel}
+        </DialogButton>
+      </div>
+    </PanelSectionRow>
+  );
 }

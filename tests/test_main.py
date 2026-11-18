@@ -143,3 +143,7 @@ def test_every_backend_method_goes_through_the_lock():
     source = pathlib.Path(__file__).resolve().parent.parent.joinpath("main.py").read_text()
     body = source.split("class Plugin:", 1)[1]
     assert "asyncio.to_thread" not in body
+
+
+def test_fps_cap_method(plugin_module):
+    assert asyncio.run(plugin_module.Plugin().set_fps_cap(None, 30))["ok"] is True

@@ -77,11 +77,13 @@ export interface ScopeResult {
   profile: ProfileInfo;
   enabled: boolean;
   gamescope_compat: boolean;
+  fps_cap: number;
   error: string | null;
 }
 
 export const getScope = callable<[number | null, string | null], ScopeResult>("get_scope");
 export const saveDefault = callable<[Settings], Result>("save_default");
+export const setFpsCap = callable<[number | null, number], Result>("set_fps_cap");
 export const setEnabled = callable<[number | null, boolean], Result>("set_enabled");
 export const setDebugLog = callable<[boolean], Result>("set_debug_log");
 export const setGamescopeCompat = callable<[number | null, boolean], Result>("set_gamescope_compat");

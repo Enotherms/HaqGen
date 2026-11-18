@@ -1,7 +1,6 @@
-import { ConfirmModal, DialogButton, PanelSection, PanelSectionRow, showModal } from "@decky/ui";
+import { ConfirmModal, PanelSection, PanelSectionRow, showModal } from "@decky/ui";
 import { toaster } from "@decky/api";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { FaInfoCircle } from "react-icons/fa";
 import {
   deleteProfile,
   getScope,
@@ -17,6 +16,7 @@ import {
   ScopeResult,
   setDebugLog,
   setEnabled,
+  setFpsCap,
   setGamescopeCompat,
   setup,
   Settings,
@@ -37,19 +37,20 @@ import { S } from "../strings";
 import { Advanced } from "./Advanced";
 import { InfoContext } from "./info";
 import { LaunchSection } from "./LaunchSection";
-import { MoreSection, ResetConfigButton } from "./MoreSection";
+import { DangerZone, ResetConfigButton, Troubleshooting } from "./MoreSection";
 import { NowPlaying } from "./NowPlaying";
 import { loadValue, saveValue } from "./persist";
 import { StatusCard } from "./StatusCard";
 import { CreateProfile } from "./CreateProfile";
 import { ProfilePicker } from "./ProfilePicker";
-import { CollapsePill, SectionHeader, ThemeStyle } from "./theme";
+import { CollapseRow, ThemeStyle, TopBar } from "./theme";
 import { useRunningGame } from "./useRunningGame";
 
 const KEY_INFO = "haqgen.showInfo";
 const KEY_PICKED = "haqgen.pickedProfile";
 const KEY_ADVANCED = "haqgen.showAdvanced";
 const KEY_MORE = "haqgen.showMore";
+const KEY_DANGER = "haqgen.showDanger";
 const DEFAULT_KEY = 0;
 
 function toast(body: string) {
@@ -93,6 +94,7 @@ export function Panel() {
   const [showInfo, setShowInfo] = useState(() => loadValue(KEY_INFO) === "1");
   const [showAdvanced, setShowAdvanced] = useState(() => loadValue(KEY_ADVANCED) === "1");
   const [showMore, setShowMore] = useState(() => loadValue(KEY_MORE) === "1");
+  const [showDanger, setShowDanger] = useState(() => loadValue(KEY_DANGER) === "1");
   const mounted = useRef(true);
   const loaded = useRef<ScopeResult | null>(null);
 
@@ -106,6 +108,7 @@ export function Panel() {
   useEffect(() => saveValue(KEY_PICKED, picked ? JSON.stringify(picked) : null), [picked]);
   useEffect(() => saveValue(KEY_ADVANCED, showAdvanced ? "1" : "0"), [showAdvanced]);
   useEffect(() => saveValue(KEY_MORE, showMore ? "1" : "0"), [showMore]);
+  useEffect(() => saveValue(KEY_DANGER, showDanger ? "1" : "0"), [showDanger]);
 
   const refresh = useCallback(async () => {
     try {
@@ -250,6 +253,17 @@ export function Panel() {
     await loadScope();
   };
 
+  const onFpsCap = async (cap: number) => {
+    setScope((cur) => (cur ? { ...cur, fps_cap: cap } : cur));
+    const target = loaded.current?.scope === "game" ? appId : null;
+    const r = await setFpsCap(target, cap);
+    if (!mounted.current) return;
+    if (!r.ok) setMessage(describeError(r.error));
+    else setSavedAt(Date.now());
+    needsRestart();
+    await loadScope();
+  };
+
   const onDebugLog = async (on: boolean) => {
     setState((cur) => (cur ? { ...cur, debug_log: on } : cur));
     const r = await setDebugLog(on);
@@ -292,19 +306,6 @@ export function Panel() {
     await loadScope();
   };
 
-  const infoToggle = (
-    <PanelSectionRow>
-      <div style={{ display: "flex", justifyContent: "flex-end" }}>
-        <DialogButton
-          onClick={() => setShowInfo((v) => !v)}
-          style={{ width: "auto", minWidth: 0, height: 28, minHeight: 28, padding: "0 12px", display: "flex", alignItems: "center", gap: 6, fontSize: 12 }}
-        >
-          <FaInfoCircle size={12} /> {showInfo ? S.hideInfo : S.showInfo}
-        </DialogButton>
-      </div>
-    </PanelSectionRow>
-  );
-
   if (!state) {
     return (
       <PanelSection>
@@ -324,23 +325,26 @@ export function Panel() {
   }
   const banner = restartFor !== null && restartFor === appId && gameName ? restartBanner(gameName) : null;
 
+  const reloadAll = async () => {
+    setMessage(null);
+    await refresh();
+    await loadScope();
+    await loadProfiles();
+  };
+
   return (
     <InfoContext.Provider value={showInfo}>
       <ThemeStyle />
       <PanelSection>
-        {infoToggle}
+        <TopBar
+          status={S.ready}
+          warning={layersWarning(state.other_layers ?? [])}
+          infoOn={showInfo}
+          onInfo={() => setShowInfo((v) => !v)}
+          infoLabel={showInfo ? S.hideInfo : S.showInfo}
+        />
         {notice && <Notice text={notice} />}
-        {state.error && (
-          <ResetConfigButton
-            onDone={async () => {
-              setMessage(null);
-              await refresh();
-              await loadScope();
-              await loadProfiles();
-            }}
-          />
-        )}
-        {layersWarning(state.other_layers ?? []) && <Notice text={layersWarning(state.other_layers ?? [])!} />}
+        {state.error && <ResetConfigButton onDone={reloadAll} />}
         {banner && <Notice strong text={`⟳ ${banner}`} />}
         {scope && (
           <NowPlaying
@@ -352,53 +356,36 @@ export function Panel() {
                 <ProfilePicker
                   profiles={profiles}
                   selected={picked?.app_id ?? null}
-                  locked={isRunning ? gameName : null}
+                  locked={null}
                   onSelect={(entry) => setPicked(entry.app_id === null ? null : entry)}
                 />
-                {!isRunning && <CreateProfile games={creatableGames(games, profiles)} onCreate={onCreate} />}
+                <CreateProfile games={creatableGames(games, profiles)} onCreate={onCreate} />
               </>
             }
             onMultiplier={onMultiplier}
             onChange={onChange}
+            onFpsCap={onFpsCap}
             onSaveForGame={onSaveForGame}
             onUseDefault={onUseDefault}
           />
         )}
         <LaunchSection onCopy={onCopy} />
-        {scope?.enabled && (
-          <>
-            <SectionHeader title={S.advanced} />
-            <CollapsePill label={S.advanced} open={showAdvanced} onToggle={() => setShowAdvanced((v) => !v)} />
-            {showAdvanced && (
-              <Advanced
-                profile={scope.profile}
-                onChange={onChange}
-                gamescope={scope.gamescope_compat}
-                onGamescope={onGamescope}
-              />
-            )}
-          </>
+        <CollapseRow label={S.advanced} open={showAdvanced} onToggle={() => setShowAdvanced((v) => !v)} />
+        {showAdvanced && scope && (
+          <Advanced profile={scope.profile} onChange={onChange} gamescope={scope.gamescope_compat} onGamescope={onGamescope} />
         )}
-        <SectionHeader title={S.more} />
-        <CollapsePill label={S.more} open={showMore} onToggle={() => setShowMore((v) => !v)} />
+        <CollapseRow label={S.troubleshooting} open={showMore} onToggle={() => setShowMore((v) => !v)} />
         {showMore && (
-          <MoreSection
-            debugLog={state.debug_log ?? false}
-            onDebugLog={onDebugLog}
-            onShowLog={onShowLog}
+          <Troubleshooting debugLog={state.debug_log ?? false} onDebugLog={onDebugLog} onShowLog={onShowLog} onConfigReset={reloadAll} />
+        )}
+        <CollapseRow danger label={S.dangerZone} open={showDanger} onToggle={() => setShowDanger((v) => !v)} />
+        {showDanger && (
+          <DangerZone
             onReset={onReset}
-            onConfigReset={async () => {
-              setMessage(null);
-              await refresh();
-              await loadScope();
-              await loadProfiles();
-            }}
             onRemoved={async () => {
               needsRestart();
               setPicked(null);
-              await loadScope();
-              await loadProfiles();
-              await refresh();
+              await reloadAll();
             }}
           />
         )}

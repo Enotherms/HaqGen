@@ -40,6 +40,24 @@ fi
 if [ -z "$off" ] && [ ! -e "$dir/$scope.gamescope-wsi" ]; then
   export ENABLE_GAMESCOPE_WSI=0
 fi
+cap=""
+if [ -f "$dir/$scope.fpscap" ]; then
+  IFS= read -r cap < "$dir/$scope.fpscap" || [ -n "$cap" ]
+fi
+case "$cap" in
+  ''|*[!0-9]*) ;;
+  *)
+    export VKD3D_FRAME_RATE="$cap"
+    export DXVK_FRAME_RATE="$cap"
+    limit="dxgi.maxFrameRate = $cap; d3d9.maxFrameRate = $cap; dxvk.maxFrameRate = $cap"
+    if [ -n "${{DXVK_CONFIG-}}" ]; then
+      DXVK_CONFIG="$DXVK_CONFIG; $limit"
+    else
+      DXVK_CONFIG="$limit"
+    fi
+    export DXVK_CONFIG
+    ;;
+esac
 exec "$@"
 """
 
