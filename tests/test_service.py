@@ -747,3 +747,84 @@ def test_layers_with_enable_environment_are_not_reported(paths):
     (d / "vkBasalt.json").write_text('{"layer": {"name": "VK_LAYER_vkBasalt"}}')
     (d / "broken.json").write_text("{not json")
     assert service.get_state(paths)["other_layers"] == ["broken", "vkBasalt"]
+
+
+from tests.test_flatpak import APPS, KDE_META, FakeFlatpak
+from haqgen import flatpak as fp
+
+DOLPHIN = "org.DolphinEmu.dolphin-emu"
+HEROIC = "com.heroicgameslauncher.hgl"
+
+
+def fake(installed=""):
+    return FakeFlatpak(apps=APPS, runtimes=installed, metadata={"org.kde.Platform//6.8": KDE_META})
+
+
+def test_flatpak_state_lists_apps_with_enabled_flag(paths):
+    s = service.flatpak_state(paths, run=fake())
+    assert s["available"] is True
+    assert [(a["app_id"], a["supported"], a["enabled"]) for a in s["apps"]] == [
+        (DOLPHIN, True, False), (HEROIC, True, False), ("io.old.App", False, False)
+    ]
+
+
+def test_flatpak_state_when_flatpak_missing(paths):
+    s = service.flatpak_state(paths, run=FakeFlatpak(fail={"--version"}))
+    assert s == {"available": False, "apps": []}
+
+
+def test_flatpak_enable_installs_missing_extension_and_adds_overrides(paths, tmp_path):
+    dll = add_dll(tmp_path)
+    run = fake()
+    r = service.flatpak_set(paths, DOLPHIN, True, run=run)
+    assert r["ok"] is True, r
+    assert ["flatpak", "install", "--user", "--noninteractive", "-y", "flathub", f"{fp.EXTENSION_ID}//25.08"] in run.calls
+    text = fp.override_path(paths.home(), DOLPHIN).read_text()
+    assert f"{paths.config_path.parent}:rw" in text
+    assert f"{dll.parent}:ro" in text
+    assert "LSFGVK_PROFILE=HaqGen Default" in text and "LSFGVK_CONFIG=" in text
+    assert service.flatpak_state(paths, run=fake())["apps"][0]["enabled"] is True
+
+
+def test_flatpak_enable_skips_install_when_extension_present(paths):
+    run = fake(installed=f"{fp.EXTENSION_ID}\t24.08\n")
+    assert service.flatpak_set(paths, HEROIC, True, run=run)["ok"] is True
+    assert not any(c[:2] == ["flatpak", "install"] for c in run.calls)
+
+
+def test_flatpak_enable_rejects_unsupported_and_unknown_apps(paths):
+    assert service.flatpak_set(paths, "io.old.App", True, run=fake())["ok"] is False
+    assert service.flatpak_set(paths, "org.not.installed", True, run=fake())["ok"] is False
+    assert service.flatpak_set(paths, "bad id", True, run=fake())["ok"] is False
+
+
+def test_flatpak_install_failure_reports_and_changes_nothing(paths):
+    run = FakeFlatpak(apps=APPS, metadata={"org.kde.Platform//6.8": KDE_META}, fail={"install"})
+    r = service.flatpak_set(paths, DOLPHIN, True, run=run)
+    assert r["ok"] is False and r["error"] == "flatpak_install_failed"
+    assert not fp.override_path(paths.home(), DOLPHIN).exists()
+
+
+def test_flatpak_disable_restores_user_overrides(paths):
+    path = fp.override_path(paths.home(), DOLPHIN)
+    path.parent.mkdir(parents=True)
+    path.write_text("[Environment]\nMY_VAR=1\n", encoding="utf-8")
+    service.flatpak_set(paths, DOLPHIN, True, run=fake())
+    service.flatpak_set(paths, DOLPHIN, False, run=fake())
+    assert path.read_text().strip() == "[Environment]\nMY_VAR=1"
+
+
+def test_remove_all_undoes_flatpak_changes(paths, tmp_path):
+    add_dll(tmp_path)
+    run = fake()
+    service.flatpak_set(paths, DOLPHIN, True, run=run)
+    service.remove_all(paths, confirmed=True, run=run)
+    assert not fp.override_path(paths.home(), DOLPHIN).exists()
+    assert ["flatpak", "uninstall", "--user", "--noninteractive", "-y", f"{fp.EXTENSION_ID}//25.08"] in run.calls
+
+
+def test_remove_all_keeps_extensions_haqgen_did_not_install(paths):
+    run = fake(installed=f"{fp.EXTENSION_ID}\t24.08\n")
+    service.flatpak_set(paths, HEROIC, True, run=run)
+    service.remove_all(paths, confirmed=True, run=run)
+    assert not any(c[:2] == ["flatpak", "uninstall"] for c in run.calls)

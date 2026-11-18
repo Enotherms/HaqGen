@@ -183,3 +183,8 @@ def test_changes_still_wait_for_the_write_lock(plugin_module):
     plugin_module._LOCK.release()
     assert done.wait(5)
     t.join()
+
+
+def test_flatpak_methods_exist(plugin_module):
+    p = plugin_module.Plugin()
+    assert hasattr(p, "flatpak_state") and hasattr(p, "flatpak_set")

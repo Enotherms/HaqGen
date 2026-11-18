@@ -15,6 +15,7 @@ from typing import Callable
 
 from .config import Config, ConfigError, Profile, load_config, needs_upgrade, save_config
 from .fsutil import atomic_write
+from . import flatpak as fp
 from .install import allowed_roots, install_lsfg_vk, lsfg_present
 from .lsfg_cli import healthcheck, validate_config
 from .locate import (
@@ -381,9 +382,10 @@ def _drop_haqgen_profiles(paths: Paths) -> None:
     save_config(paths.config_path, cfg)
 
 
-def remove_all(paths: Paths, confirmed: bool) -> dict:
+def remove_all(paths: Paths, confirmed: bool, run=None) -> dict:
     if not confirmed:
         return _fail("not_confirmed")
+    _remove_flatpak(paths, run)
     manifest = load_manifest(paths.manifest_path)
     plan = plan_removal(manifest, _roots(paths), [launcher_path(paths.home())])
     report = execute_removal(plan)
@@ -630,3 +632,100 @@ def set_fps_cap(paths: Paths, app_id: int | None, cap) -> dict:
     except OSError as exc:
         return _fail(str(exc))
     return {"ok": True}
+
+
+
+
+def _flatpak_state_file(paths: Paths) -> Path:
+    return paths.data_dir / "flatpak.json"
+
+
+def _load_flatpak(paths: Paths) -> dict:
+    try:
+        data = json.loads(_flatpak_state_file(paths).read_text(encoding="utf-8"))
+        if isinstance(data, dict):
+            return {"owned_branches": list(data.get("owned_branches", [])), "apps": dict(data.get("apps", {}))}
+    except (OSError, ValueError):
+        pass
+    return {"owned_branches": [], "apps": {}}
+
+
+def _save_flatpak(paths: Paths, state: dict) -> None:
+    paths.data_dir.mkdir(parents=True, exist_ok=True)
+    atomic_write(_flatpak_state_file(paths), json.dumps(state, indent=2))
+
+
+def _runner(paths: Paths, run):
+    return run or fp.make_runner(paths.home())
+
+
+def flatpak_state(paths: Paths, run=None) -> dict:
+    run = _runner(paths, run)
+    if not fp.available(run):
+        return {"available": False, "apps": []}
+    enabled = _load_flatpak(paths)["apps"]
+    apps = [{**a, "enabled": a["app_id"] in enabled} for a in fp.list_apps(run)]
+    return {"available": True, "apps": apps}
+
+
+def _wanted_overrides(paths: Paths) -> dict:
+    dll = find_dll(paths.steam_roots)
+    filesystems = [f"{paths.config_path.parent}:rw"]
+    if dll is not None:
+        filesystems.append(f"{dll.parent}:ro")
+    env = {"LSFGVK_CONFIG": str(paths.config_path), "LSFGVK_PROFILE": DEFAULT_PROFILE}
+    if not _marker(paths, None, "gamescope-wsi").exists():
+        env["ENABLE_GAMESCOPE_WSI"] = "0"
+    return {"filesystems": filesystems, "env": env}
+
+
+def flatpak_set(paths: Paths, app_id, on: bool, run=None) -> dict:
+    """Turns lsfg-vk on or off for one Flatpak app (it uses the Default profile)."""
+    try:
+        app_id = fp.valid_app_id(app_id)
+    except ValueError as exc:
+        return _fail(str(exc))
+    run = _runner(paths, run)
+    state = _load_flatpak(paths)
+    try:
+        if not on:
+            added = state["apps"].pop(app_id, None)
+            if added is not None:
+                fp.disable_overrides(paths.home(), app_id, added)
+            _save_flatpak(paths, state)
+            return {"ok": True}
+        if app_id in state["apps"]:
+            return {"ok": True}
+        app = next((a for a in fp.list_apps(run) if a["app_id"] == app_id), None)
+        if app is None:
+            return _fail("flatpak_app_not_found")
+        if not app["supported"]:
+            return _fail("flatpak_runtime_unsupported")
+        if app["branch"] not in fp.installed_branches(run):
+            result = fp.install_extension(run, app["branch"])
+            if not result.ok:
+                return {"ok": False, "error": "flatpak_install_failed", "detail": (result.stderr or result.stdout).strip()[:300]}
+            state["owned_branches"] = sorted(set(state["owned_branches"]) | {app["branch"]})
+        state["apps"][app_id] = fp.enable_overrides(paths.home(), app_id, _wanted_overrides(paths))
+        _save_flatpak(paths, state)
+    except (OSError, ValueError) as exc:
+        return _fail(str(exc))
+    return {"ok": True}
+
+
+def _remove_flatpak(paths: Paths, run=None) -> None:
+    state = _load_flatpak(paths)
+    if not state["apps"] and not state["owned_branches"]:
+        return
+    run = _runner(paths, run)
+    for app_id, added in list(state["apps"].items()):
+        try:
+            fp.disable_overrides(paths.home(), app_id, added)
+        except (OSError, ValueError):
+            pass
+    for branch in state["owned_branches"]:
+        try:
+            fp.uninstall_extension(run, branch)
+        except ValueError:
+            pass
+    _flatpak_state_file(paths).unlink(missing_ok=True)

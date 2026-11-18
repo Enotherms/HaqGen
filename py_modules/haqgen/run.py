@@ -14,8 +14,11 @@ class RunResult:
     timed_out: bool
 
 
-def run(cmd: list[str], timeout: float = 15.0, env: dict | None = None) -> RunResult:
-    full_env = None if env is None else {**os.environ, **env}
+def run(cmd: list[str], timeout: float = 15.0, env: dict | None = None, inherit_env: bool = True) -> RunResult:
+    if env is None:
+        full_env = None
+    else:
+        full_env = {**os.environ, **env} if inherit_env else dict(env)
     try:
         done = subprocess.run(
             cmd,

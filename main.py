@@ -91,6 +91,12 @@ class Plugin:
     async def set_enabled(self, app_id, enabled: bool) -> dict:
         return await _call(service.set_enabled, _paths(), app_id, enabled)
 
+    async def flatpak_state(self) -> dict:
+        return await _read(service.flatpak_state, _paths())
+
+    async def flatpak_set(self, app_id, on: bool) -> dict:
+        return await _call(service.flatpak_set, _paths(), app_id, on)
+
     async def removal_preview(self) -> dict:
         return await _read(service.removal_preview, _paths())
 
