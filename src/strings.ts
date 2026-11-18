@@ -57,6 +57,13 @@ export const S = {
   gamescopeNote: "Fixes Game Mode. May turn off HDR.",
 
   more: "More",
+  flatpak: "Flatpak apps",
+  flatpakHint: "Uses the Default profile. Restart the app.",
+  flatpakLoading: "Looking for Flatpak apps...",
+  flatpakNone: "No Flatpak apps installed.",
+  flatpakMissing: "Flatpak was not found on this Deck.",
+  flatpakUnsupported: "Runtime not supported",
+  flatpakInstalling: "Installing for Flatpak, may take a minute...",
   troubleshooting: "Troubleshooting",
   dangerZone: "Danger zone",
   healthCheck: "Health check",

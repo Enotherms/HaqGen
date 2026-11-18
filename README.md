@@ -17,6 +17,7 @@ HaqGen is an independent community project. It is not made or supported by the a
 - **FPS cap per profile** (`Off · 30 · 40 · 45 · 60`). Caps the game's real frame rate before frame generation (VKD3D-Proton for DX12 games, DXVK for DX9–11), which gives steadier generated frames than Steam's limiter.
 - **Advanced.** Motion quality (flow scale), lighter model, and Gamescope compatibility (on by default; the lsfg-vk fix for Steam Deck Game Mode; may turn off HDR in that game).
 - **Clear notes.** Each control says whether it applies instantly or needs a game restart (help text is behind *Show info*).
+- **Flatpak apps** (for example emulators or Heroic from Discover): turn lsfg-vk on per app. HaqGen installs lsfg-vk's official Flatpak runtime extension (user-level, from Flathub) and adds only the permissions lsfg-vk needs; your own Flatpak permissions are kept.
 - **Troubleshooting.** Health check using lsfg-vk's own validator, a debug log switch, a log viewer and *Reset lsfg-vk config* (keeps a backup).
 - **Self-repair.** Opening the panel keeps lsfg-vk's config valid and the DLL path current.
 - **Safe removal.** *Remove plugin data* lists exactly what it will delete and only removes files HaqGen created. It never touches drivers, system files, your games or Lossless Scaling.
@@ -46,6 +47,14 @@ Verified on a Steam Deck OLED: setup, frame generation at 2x/3x, Off after a gam
 - **Presets** set flow scale and the model; they never change your multiplier.
 - **FPS cap** needs a game restart. It works with frame generation on or off.
 - **Danger zone** holds *Reset profiles* and *Remove plugin data*; both ask before doing anything.
+
+## Flatpak apps
+
+Open **Flatpak apps** in the panel and switch an app on. The first time, HaqGen installs `org.freedesktop.Platform.VulkanLayer.lsfgvk` for that app's runtime (24.08 or 25.08), which can take a minute. It then grants the app read/write access to `~/.config/lsfg-vk`, read-only access to the Lossless Scaling folder, and sets `LSFGVK_CONFIG` and `LSFGVK_PROFILE` for it. Flatpak apps use the Default profile. Restart the app after switching. *Remove plugin data* removes these permissions and uninstalls only the extensions HaqGen installed.
+
+## Anti-cheat
+
+HaqGen never changes game files and never reads or writes game memory. The only thing loaded into a game is lsfg-vk's Vulkan layer, a graphics component similar to the Steam overlay; the launcher only sets environment variables. HaqGen does not try to hide from anti-cheat. Some online games forbid overlays or injected layers, so check the game's rules and try it offline first. If a game complains, set its profile to Off or remove the launch option.
 
 ## Tips for good results
 

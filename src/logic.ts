@@ -11,6 +11,9 @@ const ERROR_TEXT: Record<string, string> = {
     "Automatic install is not available yet in this version. Install lsfg-vk manually, then press Set up again.",
   install_failed: "Installing lsfg-vk failed. Open the log for details.",
   not_confirmed: "Please confirm before removing data.",
+  flatpak_install_failed: "Could not install lsfg-vk for Flatpak. Check the internet connection and Flathub.",
+  flatpak_runtime_unsupported: "This app's Flatpak runtime is not supported by lsfg-vk yet.",
+  flatpak_app_not_found: "That Flatpak app was not found. It may have been uninstalled.",
   not_running: "Start the game first, then press Detect.",
   game_not_found: "This game's install folder was not found.",
 };

@@ -16,7 +16,9 @@ function PreviewModal({
   onOK: () => void;
   closeModal?: () => void;
 }) {
-  const nothing = preview.delete.length === 0 && preview.profiles.length === 0;
+  const flatpakApps = preview.flatpak_apps ?? [];
+  const flatpakExt = preview.flatpak_extensions ?? [];
+  const nothing = preview.delete.length === 0 && preview.profiles.length === 0 && flatpakApps.length === 0 && flatpakExt.length === 0;
   return (
     <ConfirmModal
       strTitle="Remove HaqGen data"
@@ -47,6 +49,17 @@ function PreviewModal({
             </ul>
           </>
         )}
+        {flatpakApps.length > 0 && (
+          <>
+            <p>HaqGen's permissions will be removed from these Flatpak apps (your own stay):</p>
+            <ul>
+              {flatpakApps.map((a) => (
+                <li key={a}>{a}</li>
+              ))}
+            </ul>
+          </>
+        )}
+        {flatpakExt.length > 0 && <p>lsfg-vk for Flatpak runtime {flatpakExt.join(", ")} will be uninstalled.</p>}
         {preview.refused.length > 0 && (
           <p>{preview.refused.length} item(s) will be skipped because they are outside HaqGen's folders.</p>
         )}

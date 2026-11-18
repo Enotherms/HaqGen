@@ -43,6 +43,8 @@ export interface RemovalPreview {
   missing: string[];
   refused: { path: string; reason: string }[];
   profiles: string[];
+  flatpak_apps?: string[];
+  flatpak_extensions?: string[];
 }
 
 export const listGames = callable<[], { app_id: number; name: string }[]>("list_games");
@@ -81,6 +83,15 @@ export interface ScopeResult {
 export const getScope = callable<[number | null, string | null], ScopeResult>("get_scope");
 export const saveDefault = callable<[Settings], Result>("save_default");
 export const setFpsCap = callable<[number | null, number], Result>("set_fps_cap");
+export interface FlatpakApp {
+  app_id: string;
+  name: string;
+  branch: string | null;
+  supported: boolean;
+  enabled: boolean;
+}
+export const flatpakState = callable<[], { available: boolean; apps: FlatpakApp[] }>("flatpak_state");
+export const flatpakSet = callable<[string, boolean], Result>("flatpak_set");
 export const setEnabled = callable<[number | null, boolean], Result>("set_enabled");
 export const setDebugLog = callable<[boolean], Result>("set_debug_log");
 export const setGamescopeCompat = callable<[number | null, boolean], Result>("set_gamescope_compat");

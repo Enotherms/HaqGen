@@ -235,3 +235,11 @@ describe("FPS cap choices", () => {
     expect(FPS_CAPS).toEqual([0, 30, 40, 45, 60]);
   });
 });
+
+describe("Flatpak messages", () => {
+  it("explains Flatpak errors in plain words", () => {
+    expect(describeError("flatpak_install_failed")).toMatch(/Flathub/);
+    expect(describeError("flatpak_runtime_unsupported")).toMatch(/not supported/);
+    expect(describeError("flatpak_app_not_found")).toMatch(/not found/);
+  });
+});

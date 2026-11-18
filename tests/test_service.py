@@ -828,3 +828,10 @@ def test_remove_all_keeps_extensions_haqgen_did_not_install(paths):
     service.flatpak_set(paths, HEROIC, True, run=run)
     service.remove_all(paths, confirmed=True, run=run)
     assert not any(c[:2] == ["flatpak", "uninstall"] for c in run.calls)
+
+
+def test_removal_preview_lists_flatpak_changes(paths):
+    service.flatpak_set(paths, DOLPHIN, True, run=fake())
+    pv = service.removal_preview(paths)
+    assert pv["flatpak_apps"] == [DOLPHIN]
+    assert pv["flatpak_extensions"] == ["25.08"]

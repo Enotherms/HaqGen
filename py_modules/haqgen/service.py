@@ -372,6 +372,8 @@ def removal_preview(paths: Paths) -> dict:
         "missing": [str(p) for p in plan.missing],
         "refused": [{"path": p, "reason": r} for p, r in plan.refused],
         "profiles": _haqgen_profile_names(paths),
+        "flatpak_apps": sorted(_load_flatpak(paths)["apps"]),
+        "flatpak_extensions": _load_flatpak(paths)["owned_branches"],
     }
 
 
