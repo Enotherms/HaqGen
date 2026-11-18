@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>HaqGen – Frame generation plugin for Steam Deck (Lossless Scaling, Decky Loader)</title>
+  <meta name="description" content="HaqGen is a free Decky Loader plugin that sets up and controls Lossless Scaling frame generation (lsfg-vk) on the Steam Deck: one launch option, per-game profiles, FPS cap and Flatpak support.">
+  <link rel="canonical" href="https://enotherms.github.io/HaqGen/">
+  <link rel="icon" href="logo.svg" type="image/svg+xml">
+  <meta name="theme-color" content="#171a21">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="HaqGen">
+  <meta property="og:title" content="HaqGen – Frame generation for the Steam Deck">
+  <meta property="og:description" content="Free Decky Loader plugin for Lossless Scaling frame generation (lsfg-vk) on the Steam Deck.">
+  <meta property="og:url" content="https://enotherms.github.io/HaqGen/">
+  <meta property="og:image" content="https://enotherms.github.io/HaqGen/og.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta name="twitter:card" content="summary_large_image">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "HaqGen",
+    "description": "Decky Loader plugin that sets up and controls Lossless Scaling frame generation (lsfg-vk) on the Steam Deck.",
+    "applicationCategory": "GameApplication",
+    "operatingSystem": "SteamOS",
+    "softwareVersion": "0.1.1",
+    "url": "https://enotherms.github.io/HaqGen/",
+    "downloadUrl": "https://github.com/Enotherms/HaqGen/releases/latest",
+    "codeRepository": "https://github.com/Enotherms/HaqGen",
+    "license": "https://opensource.org/license/bsd-3-clause",
+    "image": "https://enotherms.github.io/HaqGen/og.png",
+    "author": { "@type": "Person", "name": "Enotherms", "url": "https://github.com/Enotherms" },
+    "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
+  }
+  </script>
+  <style>
+    :root {
+      --bg: #171a21; --panel: #1b2838; --edge: #2a475e;
+      --text: #ffffff; --muted: #c7d5e0; --accent: #66c0f4; --button: #1769b8; --focus: #1a9fff;
+      color-scheme: dark;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; background: var(--bg); color: var(--muted);
+      font: 17px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+    a { color: var(--accent); }
+    a:focus-visible, .button:focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; }
+    main { max-width: 960px; margin: 0 auto; padding: 0 16px 48px; }
+    header { text-align: center; padding: 56px 16px 32px; background: linear-gradient(var(--panel), var(--bg)); }
+    header img { width: 112px; height: 112px; }
+    h1 { color: var(--text); font-size: 48px; margin: 16px 0 4px; letter-spacing: -0.5px; }
+    .tagline { font-size: 21px; color: var(--accent); margin: 0 0 24px; }
+    .buttons { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+    .button {
+      display: inline-block; padding: 12px 22px; border-radius: 6px; text-decoration: none;
+      font-weight: 600; color: var(--text); background: var(--edge);
+    }
+    .button.primary { background: var(--button); }
+    .button:hover { background: var(--focus); color: var(--bg); }
+    .note { font-size: 14px; margin-top: 14px; }
+    h2 { color: var(--text); font-size: 26px; margin: 48px 0 12px; }
+    .shots { display: flex; gap: 20px; justify-content: center; flex-wrap: wrap; margin-top: 8px; }
+    .shots img { width: 300px; max-width: 100%; height: auto; border-radius: 10px; border: 1px solid var(--edge); }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
+    .card { background: var(--panel); border: 1px solid var(--edge); border-radius: 10px; padding: 16px 18px; }
+    .card b { color: var(--text); display: block; margin-bottom: 4px; }
+    ol { padding-left: 22px; }
+    code { background: var(--panel); border: 1px solid var(--edge); border-radius: 5px; padding: 2px 6px; color: var(--text); }
+    footer { text-align: center; font-size: 14px; padding: 32px 16px; border-top: 1px solid var(--panel); }
+  </style>
+</head>
+<body>
+  <header>
+    <img src="logo.svg" alt="HaqGen logo" width="112" height="112">
+    <h1>HaqGen</h1>
+    <p class="tagline">Lossless Scaling frame generation for the Steam Deck</p>
+    <div class="buttons">
+      <a class="button primary" href="https://github.com/Enotherms/HaqGen/releases/latest">Download</a>
+      <a class="button" href="https://github.com/Enotherms/HaqGen">View on GitHub</a>
+    </div>
+    <p class="note">Free and open source · Decky Loader plugin · Early release</p>
+  </header>
+
+  <main>
+    <p>
+      <b>HaqGen</b> is a <a href="https://decky.xyz">Decky Loader</a> plugin built on
+      <a href="https://lsfg-vk.dev">lsfg-vk</a>, the Linux version of Lossless Scaling's frame generation.
+      It installs everything for you, gives you one launch option for all your games, and keeps the
+      controls simple in the Steam Deck's Quick Access menu, while still exposing the technical settings.
+    </p>
+
+    <div class="shots">
+      <img src="screenshot-main.png" alt="HaqGen main controls in the Steam Deck Quick Access menu" width="300" height="452" loading="lazy">
+      <img src="screenshot-advanced.png" alt="HaqGen advanced settings and troubleshooting" width="300" height="452" loading="lazy">
+    </div>
+
+    <h2>Features</h2>
+    <div class="grid">
+      <div class="card"><b>One-press setup</b>Installs lsfg-vk 2.0, finds your Lossless Scaling DLL and writes a valid config.</div>
+      <div class="card"><b>One launch option</b>Paste <code>~/haqgen %command%</code> into any game.</div>
+      <div class="card"><b>Profiles</b>A Default profile plus per-game profiles. The panel follows the game you play.</div>
+      <div class="card"><b>Simple controls</b>Off · 2x · 3x · 4x, and Battery · Balanced · Quality presets.</div>
+      <div class="card"><b>FPS cap</b>Caps the game's real frame rate before frame generation for steadier frames.</div>
+      <div class="card"><b>Flatpak apps</b>Frame generation for emulators and launchers from Discover.</div>
+      <div class="card"><b>Troubleshooting</b>Health check with lsfg-vk's validator, debug log and config repair.</div>
+      <div class="card"><b>Clean removal</b>Removes only what HaqGen created, and shows the list first.</div>
+    </div>
+
+    <h2>Quick start</h2>
+    <ol>
+      <li>Install <a href="https://decky.xyz">Decky Loader</a>.</li>
+      <li>Install <a href="https://store.steampowered.com/app/993090/Lossless_Scaling/">Lossless Scaling</a> on Steam and switch it to the <code>lsfg-vk</code> beta branch.</li>
+      <li>In Decky settings › Developer, use <b>Install Plugin From URL</b> with the zip from the <a href="https://github.com/Enotherms/HaqGen/releases/latest">latest release</a>.</li>
+      <li>Open HaqGen in the Quick Access menu and press <b>Set up</b>.</li>
+      <li>Copy the launch option into each game: <code>~/haqgen %command%</code></li>
+    </ol>
+    <p>Full guide, recommended settings and game support: <a href="https://github.com/Enotherms/HaqGen#readme">README on GitHub</a>.</p>
+  </main>
+
+  <footer>
+    HaqGen is an independent project by <a href="https://github.com/Enotherms">Enotherms</a>, licensed under BSD 3-Clause.
+    It is not affiliated with Lossless Scaling, lsfg-vk or Decky Loader.
+  </footer>
+</body>
+</html>
