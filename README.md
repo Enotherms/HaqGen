@@ -1,3 +1,5 @@
+<img src="assets/logo.svg" width="80" height="80" alt="HaqGen logo">
+
 # HaqGen
 
 Lossless Scaling frame generation for the Steam Deck, installed and managed from the Quick Access menu.
