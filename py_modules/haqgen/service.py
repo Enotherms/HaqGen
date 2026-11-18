@@ -3,6 +3,8 @@ from __future__ import annotations
 import dataclasses
 import os
 import re
+import shutil
+import time
 import ssl
 import urllib.request
 from collections import deque
@@ -531,3 +533,19 @@ def set_gamescope_compat(paths: Paths, app_id: int | None, on: bool) -> dict:
     except OSError as exc:
         return _fail(str(exc))
     return {"ok": True}
+
+
+def reset_lsfg_config(paths: Paths) -> dict:
+    """Saves a copy of lsfg-vk's config, then writes a clean, valid one with the Default profile."""
+    backup = None
+    try:
+        if paths.config_path.exists():
+            backup = paths.config_path.with_name(f"conf.toml.haqgen-backup-{time.strftime('%Y%m%d-%H%M%S')}")
+            shutil.copy2(paths.config_path, backup)
+        dll = find_dll(paths.steam_roots)
+        cfg = Config(dll=str(dll) if dll else None, profiles=[_base_default()])
+        save_config(paths.config_path, cfg)
+        _clear_markers(paths)
+    except OSError as exc:
+        return _fail(str(exc))
+    return {"ok": True, "backup": str(backup) if backup else None}

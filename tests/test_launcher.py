@@ -120,3 +120,14 @@ def test_runs_the_game_command_with_arguments(setup):
     home, script, games = setup
     out = subprocess.run([str(script), "printf", "%s,%s", "a b", "c"], env={"HOME": str(home), "PATH": os.environ["PATH"]}, capture_output=True, text=True, timeout=10)
     assert out.stdout == "a b,c"
+
+
+def test_gamescope_compat_not_applied_when_frame_generation_is_off(setup):
+    home, script, games = setup
+    (games / "default.off").write_text("")
+    r = run_launcher(script, home, SteamAppId="9")
+    assert r["disabled"] == "1" and r["wsi"] == "unset"
+    (games / "5.profile").write_text("HaqGen 5 Own")
+    (games / "5.off").write_text("")
+    r = run_launcher(script, home, SteamAppId="5")
+    assert r["disabled"] == "1" and r["wsi"] == "unset"

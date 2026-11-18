@@ -37,7 +37,7 @@ import { S } from "../strings";
 import { Advanced } from "./Advanced";
 import { InfoContext } from "./info";
 import { LaunchSection } from "./LaunchSection";
-import { MoreSection } from "./MoreSection";
+import { MoreSection, ResetConfigButton } from "./MoreSection";
 import { NowPlaying } from "./NowPlaying";
 import { loadValue, saveValue } from "./persist";
 import { StatusCard } from "./StatusCard";
@@ -330,6 +330,16 @@ export function Panel() {
       <PanelSection>
         {infoToggle}
         {notice && <Notice text={notice} />}
+        {state.error && (
+          <ResetConfigButton
+            onDone={async () => {
+              setMessage(null);
+              await refresh();
+              await loadScope();
+              await loadProfiles();
+            }}
+          />
+        )}
         {layersWarning(state.other_layers ?? []) && <Notice text={layersWarning(state.other_layers ?? [])!} />}
         {banner && <Notice strong text={`⟳ ${banner}`} />}
         {scope && (
@@ -377,6 +387,12 @@ export function Panel() {
             onDebugLog={onDebugLog}
             onShowLog={onShowLog}
             onReset={onReset}
+            onConfigReset={async () => {
+              setMessage(null);
+              await refresh();
+              await loadScope();
+              await loadProfiles();
+            }}
             onRemoved={async () => {
               needsRestart();
               setPicked(null);

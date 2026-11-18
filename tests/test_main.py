@@ -103,3 +103,43 @@ def test_gamescope_method(plugin_module):
 
 def test_debug_log_method(plugin_module):
     assert asyncio.run(plugin_module.Plugin().set_debug_log(False))["ok"] is True
+
+
+def test_concurrent_saves_do_not_lose_changes(plugin_module, monkeypatch):
+    import time
+
+    real_save = plugin_module.service.save_config
+
+    def slow_save(path, cfg):
+        time.sleep(0.02)
+        real_save(path, cfg)
+
+    monkeypatch.setattr(plugin_module.service, "save_config", slow_save)
+    p = plugin_module.Plugin()
+
+    async def both():
+        await asyncio.gather(p.save_default({"multiplier": 4}), p.save_default({"performance_mode": True}))
+
+    asyncio.run(both())
+    prof = asyncio.run(p.get_scope(None, None))["profile"]
+    assert prof["multiplier"] == 4 and prof["performance_mode"] is True
+
+
+def test_reset_lsfg_config_method(plugin_module):
+    assert asyncio.run(plugin_module.Plugin().reset_lsfg_config())["ok"] is True
+
+
+def test_read_log_line_count_is_clamped(plugin_module, monkeypatch):
+    seen = {}
+    monkeypatch.setattr(plugin_module.service, "read_log", lambda paths, n: seen.setdefault("n", n) and "")
+    asyncio.run(plugin_module.Plugin().read_log(10**9))
+    assert seen["n"] == 2000
+
+
+def test_every_backend_method_goes_through_the_lock():
+    import inspect
+    import pathlib
+
+    source = pathlib.Path(__file__).resolve().parent.parent.joinpath("main.py").read_text()
+    body = source.split("class Plugin:", 1)[1]
+    assert "asyncio.to_thread" not in body

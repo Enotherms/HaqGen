@@ -56,6 +56,7 @@ export const removalPreview = callable<[], RemovalPreview>("removal_preview");
 export const removeAll = callable<[boolean], Result>("remove_all");
 export const readLog = callable<[number], string>("read_log");
 export const resetDefaults = callable<[], Result>("reset_defaults");
+export const resetLsfgConfig = callable<[], Result & { backup?: string | null }>("reset_lsfg_config");
 
 export interface HealthResult {
   ok: boolean;

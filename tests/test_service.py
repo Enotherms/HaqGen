@@ -621,3 +621,29 @@ def test_self_repair_runs_only_while_launcher_is_installed(paths, tmp_path):
     paths.config_path.write_text(f'version = 2\n\n[global]\ndll = "{dll}"\n', encoding="utf-8")
     service.get_state(paths)
     assert load_config(paths.config_path).profiles == []
+
+
+def test_reset_lsfg_config_backs_up_and_writes_clean_config(paths, tmp_path):
+    dll = add_dll(tmp_path)
+    paths.config_path.parent.mkdir(parents=True)
+    paths.config_path.write_text("version = 2\n[profile]\nname = 'broken'\n", encoding="utf-8")
+    service.save_profile
+    r = service.reset_lsfg_config(paths)
+    assert r["ok"] is True
+    backup = Path(r["backup"])
+    assert backup.read_text(encoding="utf-8") == "version = 2\n[profile]\nname = 'broken'\n"
+    cfg = load_config(paths.config_path)
+    assert cfg.dll == str(dll)
+    assert [p.name for p in cfg.profiles] == ["HaqGen Default"]
+
+
+def test_reset_lsfg_config_clears_per_game_links(paths):
+    service.save_profile(paths, 7, "G", {})
+    service.reset_lsfg_config(paths)
+    assert not (games_dir(paths) / "7.profile").exists()
+
+
+def test_reset_lsfg_config_without_existing_file(paths):
+    r = service.reset_lsfg_config(paths)
+    assert r["ok"] is True and r["backup"] is None
+    assert [p.name for p in load_config(paths.config_path).profiles] == ["HaqGen Default"]

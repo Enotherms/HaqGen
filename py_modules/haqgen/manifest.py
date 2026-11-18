@@ -71,6 +71,8 @@ def _refusal(path: Path, roots: list[Path], files: list[Path] | None = None) -> 
     if files and path in files:
         if path.is_symlink():
             return "is a symlink"
+        if path.exists() and not path.is_file():
+            return "is not a regular file"
         return None
     resolved_roots = [Path(os.path.realpath(r)) for r in roots]
     own = Path(os.path.realpath(path.parent)) / path.name

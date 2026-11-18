@@ -1,6 +1,8 @@
 import { ConfirmModal, PanelSectionRow, showModal, ToggleField } from "@decky/ui";
 import { useState } from "react";
-import { healthCheck } from "../api";
+import { healthCheck, resetLsfgConfig } from "../api";
+import { describeError } from "../logic";
+import { toaster } from "@decky/api";
 import { S } from "../strings";
 import { useInfo } from "./info";
 import { RemoveData } from "./RemoveData";
@@ -11,6 +13,7 @@ interface Props {
   onDebugLog: (on: boolean) => void;
   onShowLog: () => void;
   onReset: () => void;
+  onConfigReset: () => void;
   onRemoved: () => void;
 }
 
@@ -25,7 +28,7 @@ function HealthModal({ ok, summary, details, closeModal }: { ok: boolean; summar
   );
 }
 
-export function MoreSection({ debugLog, onDebugLog, onShowLog, onReset, onRemoved }: Props) {
+export function MoreSection({ debugLog, onDebugLog, onShowLog, onReset, onConfigReset, onRemoved }: Props) {
   const [checking, setChecking] = useState(false);
   const resetInfo = useInfo(S.resetInfo);
   return (
@@ -47,9 +50,43 @@ export function MoreSection({ debugLog, onDebugLog, onShowLog, onReset, onRemove
         <ToggleField label={S.debugLog} description={S.debugLogNote} checked={debugLog} onChange={onDebugLog} />
       </PanelSectionRow>
       <PlainButton onClick={onShowLog}>{S.showLog}</PlainButton>
-      <PlainButton onClick={onReset}>{S.resetProfiles}</PlainButton>
+      <PlainButton
+        onClick={() =>
+          showModal(
+            <ConfirmModal
+              strTitle={S.resetConfirmTitle}
+              strOKButtonText={S.resetConfirmOk}
+              strCancelButtonText={S.cancel}
+              onOK={onReset}
+            >
+              {S.resetConfirmBody}
+            </ConfirmModal>
+          )
+        }
+      >
+        {S.resetProfiles}
+      </PlainButton>
       {resetInfo && <Hint>{resetInfo}</Hint>}
+      <ResetConfigButton onDone={onConfigReset} />
       <RemoveData onDone={onRemoved} />
+    </>
+  );
+}
+
+export function ResetConfigButton({ onDone }: { onDone: () => void }) {
+  const info = useInfo(S.resetConfigInfo);
+  return (
+    <>
+      <PlainButton
+        onClick={async () => {
+          const r = await resetLsfgConfig();
+          toaster.toast({ title: S.title, body: r.ok ? S.resetConfigDone(r.backup) : describeError(r.error) });
+          onDone();
+        }}
+      >
+        {S.resetConfig}
+      </PlainButton>
+      {info && <Hint>{info}</Hint>}
     </>
   );
 }

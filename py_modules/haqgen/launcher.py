@@ -26,7 +26,9 @@ scope="default"
 if [ -n "$id" ] && [ -f "$dir/$id.profile" ]; then
   scope="$id"
 fi
+off=""
 if [ -e "$dir/$scope.off" ]; then
+  off=1
   export DISABLE_LSFGVK=1
 elif [ "$scope" = "default" ]; then
   export LSFGVK_PROFILE="{DEFAULT_PROFILE}"
@@ -35,7 +37,7 @@ else
   IFS= read -r name < "$dir/$scope.profile" || [ -n "$name" ]
   export LSFGVK_PROFILE="$name"
 fi
-if [ ! -e "$dir/$scope.gamescope-wsi" ]; then
+if [ -z "$off" ] && [ ! -e "$dir/$scope.gamescope-wsi" ]; then
   export ENABLE_GAMESCOPE_WSI=0
 fi
 exec "$@"

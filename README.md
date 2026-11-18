@@ -75,11 +75,7 @@ pnpm test                 # frontend tests (vitest)
 python3.11 -m pytest      # backend tests (needs Python 3.11+)
 ```
 
-Deploy to a Deck over SSH (enable SSH on the Deck first: `passwd`, then `sudo systemctl enable --now sshd`):
-
-```bash
-scripts/deploy.sh <deck-ip>
-```
+To install on a Deck, copy `dist/`, `main.py`, `plugin.json`, `package.json`, `LICENSE` and `py_modules/` into `~/homebrew/plugins/HaqGen` (owned by root) and restart Decky (`sudo systemctl restart plugin_loader`).
 
 `scripts/deck-console.mjs` streams the Quick Access menu's console for debugging. It needs Decky's *Allow Remote CEF Debugging* and an SSH tunnel: `ssh -N -L 9222:127.0.0.1:8080 deck@<deck-ip>`, then `node scripts/deck-console.mjs 127.0.0.1:9222`.
 

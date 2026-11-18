@@ -143,3 +143,13 @@ def test_allowed_file_symlink_is_refused(tmp_path):
     os.symlink(target, home / "haqgen")
     plan = plan_removal(Manifest(paths=[str(home / "haqgen")]), [], allowed_files=[home / "haqgen"])
     assert plan.to_delete == [] and len(plan.refused) == 1
+
+
+def test_allowed_file_that_is_a_directory_is_refused(tmp_path):
+    home = tmp_path / "home"
+    (home / "haqgen").mkdir(parents=True)
+    (home / "haqgen" / "precious").write_text("x")
+    plan = plan_removal(Manifest(paths=[str(home / "haqgen")]), [], allowed_files=[home / "haqgen"])
+    assert plan.to_delete == [] and len(plan.refused) == 1
+    execute_removal(plan)
+    assert (home / "haqgen" / "precious").exists()
