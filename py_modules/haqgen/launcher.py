@@ -81,3 +81,18 @@ def install_launcher(home_dir: Path, manifest_path: Path) -> Path:
     if str(path) not in load_manifest(manifest_path).paths:
         record_paths(manifest_path, [path])
     return path
+
+
+def launcher_current(home_dir: Path) -> bool:
+    """True when ~/haqgen exists and matches this version of HaqGen exactly."""
+    try:
+        return launcher_path(home_dir).read_text(encoding="utf-8") == SCRIPT
+    except (OSError, UnicodeDecodeError):
+        return False
+
+
+def is_ours(home_dir: Path) -> bool:
+    try:
+        return LAUNCHER_HEADER in launcher_path(home_dir).read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return False

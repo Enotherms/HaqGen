@@ -866,3 +866,33 @@ def test_existing_flathub_remote_is_never_removed(paths):
     service.remove_all(paths, confirmed=True, run=run)
     assert not any(c[:2] == ["flatpak", "remote-add"] for c in run.calls)
     assert not any(c[:2] == ["flatpak", "remote-delete"] for c in run.calls)
+
+
+def test_state_refreshes_an_outdated_haqgen_launcher(paths, tmp_path):
+    from haqgen.launcher import LAUNCHER_HEADER, SCRIPT, install_launcher
+
+    add_dll(tmp_path)
+    install_launcher(paths.home(), paths.manifest_path)
+    old = f"#!/bin/sh\n{LAUNCHER_HEADER}. old version without the FPS cap\nexec \"$@\"\n"
+    (paths.home() / "haqgen").write_text(old, encoding="utf-8")
+    service.get_state(paths)
+    assert (paths.home() / "haqgen").read_text(encoding="utf-8") == SCRIPT
+    import os as _os
+    assert _os.access(paths.home() / "haqgen", _os.X_OK)
+
+
+def test_state_never_rewrites_a_foreign_launcher(paths, tmp_path):
+    add_dll(tmp_path)
+    (paths.home()).mkdir(parents=True, exist_ok=True)
+    (paths.home() / "haqgen").write_text("#!/bin/sh\necho someone else's script\n", encoding="utf-8")
+    service.get_state(paths)
+    assert "someone else" in (paths.home() / "haqgen").read_text(encoding="utf-8")
+
+
+def test_launcher_status_reports_outdated(paths, tmp_path):
+    from haqgen.launcher import LAUNCHER_HEADER, launcher_current
+
+    (paths.home()).mkdir(parents=True, exist_ok=True)
+    assert launcher_current(paths.home()) is False
+    (paths.home() / "haqgen").write_text(f"#!/bin/sh\n{LAUNCHER_HEADER}. old\n", encoding="utf-8")
+    assert launcher_current(paths.home()) is False

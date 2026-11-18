@@ -25,7 +25,7 @@ from .locate import (
     lossless_on_wrong_branch,
 )
 from .settings import load_settings, save_settings
-from .launcher import DEFAULT_PROFILE, LAUNCH_OPTION, install_launcher, launcher_path
+from .launcher import DEFAULT_PROFILE, LAUNCH_OPTION, install_launcher, is_ours, launcher_current, launcher_path
 from .manifest import execute_removal, load_manifest, plan_removal, record_paths, replace_manifest
 from .presets import (
     PRESETS,
@@ -218,7 +218,17 @@ def _write_marker(path: Path, text: str) -> None:
     atomic_write(path, text)
 
 
+def _refresh_launcher(paths: Paths) -> None:
+    """A new HaqGen version may ship a newer launcher; refresh ~/haqgen, but only if it is ours."""
+    if is_ours(paths.home()) and not launcher_current(paths.home()):
+        install_launcher(paths.home(), paths.manifest_path)
+
+
 def get_state(paths: Paths) -> dict:
+    try:
+        _refresh_launcher(paths)
+    except OSError:
+        pass
     dll = find_dll(paths.steam_roots)
     state = {
         "installed": _installed(paths),
