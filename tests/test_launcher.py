@@ -171,3 +171,73 @@ def test_fps_cap_uses_game_scope_and_ignores_garbage(setup):
     assert run_cap(script, home, SteamAppId="5")[0] == "60"
     (games / "5.fpscap").write_text("$(touch /tmp/pwned)")
     assert run_cap(script, home, SteamAppId="5") == ("unset", "unset", "unset")
+
+
+ENGINE = 'printf "%s|%s|%s|%s|%s" "${HAQENGINE-unset}" "${HAQENGINE_MULTIPLIER-unset}" "${DISABLE_LSFGVK-unset}" "${LSFGVK_PROFILE-unset}" "${ENABLE_GAMESCOPE_WSI-unset}"'
+
+
+def run_engine(script: Path, home: Path, **env_extra) -> dict:
+    env = {"HOME": str(home), "PATH": os.environ["PATH"], **env_extra}
+    out = subprocess.run([str(script), "sh", "-c", ENGINE], env=env, capture_output=True, text=True, timeout=10)
+    assert out.returncode == 0, out.stderr
+    haq, mult, disabled, profile, wsi = out.stdout.split("|")
+    return {"haq": haq, "mult": mult, "disabled": disabled, "profile": profile, "wsi": wsi}
+
+
+def install_haqengine_layer(home: Path) -> None:
+    layers = home / ".local" / "share" / "vulkan" / "implicit_layer.d"
+    layers.mkdir(parents=True, exist_ok=True)
+    (layers / "haqengine.json").write_text("{}")
+
+
+def test_haqengine_marker_sets_engine_env(setup):
+    home, script, games = setup
+    install_haqengine_layer(home)
+    (games / "7.profile").write_text("HaqGen 7 Game")
+    (games / "7.haqengine").write_text("3\n")
+    got = run_engine(script, home, SteamAppId="7")
+    assert got == {"haq": "1", "mult": "3", "disabled": "1", "profile": "unset", "wsi": "0"}
+
+
+def test_haqengine_marker_without_layer_falls_back_to_lsfg(setup):
+    home, script, games = setup
+    (games / "7.profile").write_text("HaqGen 7 Game")
+    (games / "7.haqengine").write_text("2\n")
+    got = run_engine(script, home, SteamAppId="7")
+    assert (got["haq"], got["disabled"], got["profile"]) == ("unset", "unset", "HaqGen 7 Game")
+
+
+def test_off_wins_over_haqengine(setup):
+    home, script, games = setup
+    install_haqengine_layer(home)
+    (games / "7.profile").write_text("HaqGen 7 Game")
+    (games / "7.haqengine").write_text("2\n")
+    (games / "7.off").write_text("")
+    got = run_engine(script, home, SteamAppId="7")
+    assert (got["haq"], got["disabled"]) == ("unset", "1")
+
+
+def test_bad_haqengine_marker_is_ignored(setup):
+    home, script, games = setup
+    install_haqengine_layer(home)
+    (games / "7.profile").write_text("HaqGen 7 Game")
+    for bad in ["", "abc", "9", "1", "$(touch /tmp/pwned)"]:
+        (games / "7.haqengine").write_text(bad)
+        got = run_engine(script, home, SteamAppId="7")
+        assert (got["haq"], got["profile"]) == ("unset", "HaqGen 7 Game"), bad
+
+
+def test_default_scope_haqengine_applies_to_other_games(setup):
+    home, script, games = setup
+    install_haqengine_layer(home)
+    (games / "default.haqengine").write_text("4")
+    got = run_engine(script, home, SteamAppId="99")
+    assert (got["haq"], got["mult"], got["disabled"]) == ("1", "4", "1")
+
+
+def test_fps_cap_still_applies_with_haqengine(setup):
+    home, script, games = setup
+    install_haqengine_layer(home)
+    (games / "default.haqengine").write_text("2")
+    (games / "default.fpscap").write_text("30")
+    assert run_cap(script, home, SteamAppId="9")[0] == "30"

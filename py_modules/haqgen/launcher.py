@@ -38,6 +38,18 @@ else
   IFS= read -r name < "$dir/$scope.profile" || [ -n "$name" ]
   export LSFGVK_PROFILE="$name"
 fi
+haq=""
+if [ -z "$off" ] && [ -f "$dir/$scope.haqengine" ] && [ -f "${{HOME}}/.local/share/vulkan/implicit_layer.d/haqengine.json" ]; then
+  IFS= read -r haq < "$dir/$scope.haqengine" || [ -n "$haq" ]
+fi
+case "$haq" in
+  2|3|4)
+    unset LSFGVK_PROFILE
+    export DISABLE_LSFGVK=1
+    export HAQENGINE=1
+    export HAQENGINE_MULTIPLIER="$haq"
+    ;;
+esac
 if [ -z "$off" ] && [ ! -e "$dir/$scope.gamescope-wsi" ]; then
   export ENABLE_GAMESCOPE_WSI=0
 fi
