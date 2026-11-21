@@ -37,7 +37,7 @@ from .presets import (
 )
 
 PROFILE_PREFIX = "HaqGen "
-MARKER_SUFFIXES = ("profile", "off", "gamescope-wsi", "fpscap")
+MARKER_SUFFIXES = ("profile", "off", "gamescope-wsi", "fpscap", "haqengine")
 MAX_DOWNLOAD = 64 * 1024 * 1024
 KEEP_BACKUPS = 3
 
@@ -67,6 +67,7 @@ def _settings(value) -> dict:
         raise ValueError("exe_names must be a list of names")
     return value
 FPS_CAP_RANGE = (10, 240)
+HAQENGINE_MULTIPLIERS = (2, 3, 4)
 
 
 @dataclass
@@ -539,6 +540,8 @@ def get_scope(paths: Paths, app_id: int | None, game_name: str | None) -> dict:
         "enabled": not _marker(paths, marker_id, "off").exists(),
         "gamescope_compat": not _marker(paths, marker_id, "gamescope-wsi").exists(),
         "fps_cap": _read_fps_cap(_marker(paths, marker_id, "fpscap")),
+        "engine": "haqengine" if _read_haqengine(_marker(paths, marker_id, "haqengine")) else "lsfg",
+        "haqengine_multiplier": _read_haqengine(_marker(paths, marker_id, "haqengine")),
         "error": error,
     }
 
@@ -627,6 +630,36 @@ def _read_fps_cap(path: Path) -> int:
     except OSError:
         return 0
     return int(text) if text.isdigit() and FPS_CAP_RANGE[0] <= int(text) <= FPS_CAP_RANGE[1] else 0
+
+
+def _read_haqengine(path: Path) -> int | None:
+    try:
+        text = path.read_text(encoding="utf-8").strip()
+    except OSError:
+        return None
+    return int(text) if text.isdigit() and int(text) in HAQENGINE_MULTIPLIERS else None
+
+
+def set_engine(paths: Paths, app_id: int | None, engine, multiplier) -> dict:
+    """Experimental: "haqengine" makes the launcher run HaqEngine at `multiplier` instead of
+    lsfg-vk for this scope; "lsfg" removes that choice."""
+    if engine not in ("lsfg", "haqengine"):
+        return _fail("engine must be lsfg or haqengine")
+    if engine == "haqengine" and (isinstance(multiplier, bool) or not isinstance(multiplier, int) or multiplier not in HAQENGINE_MULTIPLIERS):
+        return _fail("HaqEngine multiplier must be 2, 3 or 4")
+    try:
+        app_id = _scope_id(app_id)
+    except ValueError as exc:
+        return _fail(str(exc))
+    try:
+        marker = _games(paths) / _marker(paths, app_id, "haqengine").name
+        if engine == "lsfg":
+            marker.unlink(missing_ok=True)
+        else:
+            _write_marker(marker, f"{multiplier}\n")
+    except OSError as exc:
+        return _fail(str(exc))
+    return {"ok": True}
 
 
 def set_fps_cap(paths: Paths, app_id: int | None, cap) -> dict:

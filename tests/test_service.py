@@ -896,3 +896,37 @@ def test_launcher_status_reports_outdated(paths, tmp_path):
     assert launcher_current(paths.home()) is False
     (paths.home() / "haqgen").write_text(f"#!/bin/sh\n{LAUNCHER_HEADER}. old\n", encoding="utf-8")
     assert launcher_current(paths.home()) is False
+
+
+def test_engine_defaults_to_lsfg(paths):
+    scope = service.get_scope(paths, None, None)
+    assert (scope["engine"], scope["haqengine_multiplier"]) == ("lsfg", None)
+
+
+def test_set_engine_haqengine_writes_marker_and_scope_reports_it(paths):
+    service.save_profile(paths, 7, "G", {})
+    assert service.set_engine(paths, 7, "haqengine", 3)["ok"] is True
+    assert (games_dir(paths) / "7.haqengine").read_text().strip() == "3"
+    scope = service.get_scope(paths, 7, "G")
+    assert (scope["engine"], scope["haqengine_multiplier"]) == ("haqengine", 3)
+    assert service.get_scope(paths, None, None)["engine"] == "lsfg"
+
+
+def test_set_engine_lsfg_removes_marker(paths):
+    service.set_engine(paths, None, "haqengine", 2)
+    assert (games_dir(paths) / "default.haqengine").exists()
+    assert service.set_engine(paths, None, "lsfg", 2)["ok"] is True
+    assert not (games_dir(paths) / "default.haqengine").exists()
+
+
+@pytest.mark.parametrize("engine,mult", [("x", 2), ("haqengine", 1), ("haqengine", 5), ("haqengine", True), ("haqengine", "2"), ("haqengine", 2.0)])
+def test_set_engine_rejects_bad_values(paths, engine, mult):
+    assert service.set_engine(paths, None, engine, mult)["ok"] is False
+    assert not (games_dir(paths) / "default.haqengine").exists()
+
+
+def test_delete_profile_removes_haqengine_marker(paths):
+    service.save_profile(paths, 7, "G", {})
+    service.set_engine(paths, 7, "haqengine", 2)
+    service.delete_profile(paths, 7, "G")
+    assert not (games_dir(paths) / "7.haqengine").exists()
