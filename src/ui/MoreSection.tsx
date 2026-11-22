@@ -7,6 +7,7 @@ import { S } from "../strings";
 import { useInfo } from "./info";
 import { RemoveData } from "./RemoveData";
 import { Hint, PlainButton } from "./theme";
+import { HaqEngineControl } from "./useHaqEngine";
 
 function HealthModal({ ok, summary, details, closeModal }: { ok: boolean; summary: string; details: string; closeModal?: () => void }) {
   return (
@@ -72,7 +73,7 @@ export function Troubleshooting({
   );
 }
 
-export function DangerZone({ onReset, onRemoved }: { onReset: () => void; onRemoved: () => void }) {
+export function DangerZone({ onReset, onRemoved, haqengine }: { onReset: () => void; onRemoved: () => void; haqengine: HaqEngineControl }) {
   const resetInfo = useInfo(S.resetInfo);
   return (
     <>
@@ -88,6 +89,25 @@ export function DangerZone({ onReset, onRemoved }: { onReset: () => void; onRemo
         {S.resetProfiles}
       </PlainButton>
       {resetInfo && <Hint>{resetInfo}</Hint>}
+      {haqengine.status?.installed && (
+        <PlainButton
+          disabled={haqengine.busy}
+          onClick={() =>
+            showModal(
+              <ConfirmModal
+                strTitle={S.haqengineRemoveTitle}
+                strOKButtonText={S.haqengineRemove}
+                strCancelButtonText={S.cancel}
+                onOK={haqengine.remove}
+              >
+                {S.haqengineRemoveBody}
+              </ConfirmModal>
+            )
+          }
+        >
+          {S.haqengineRemove}
+        </PlainButton>
+      )}
       <RemoveData onDone={onRemoved} />
     </>
   );

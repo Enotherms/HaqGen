@@ -282,25 +282,22 @@ describe("haqengineAction", () => {
   it("offers install when HaqEngine is missing", () => {
     expect(haqengineAction({ ...base, installed: false, update_available: false, version: null })).toEqual({
       label: "Install HaqEngine",
-      line: "Not installed · 0.1.0 available",
+      line: "HaqEngine is not installed yet.",
     });
   });
-  it("offers reinstall at the pinned version", () => {
-    expect(haqengineAction({ ...base, installed: true, update_available: false, version: "0.1.0" })).toEqual({
-      label: "Reinstall HaqEngine",
-      line: "Installed · 0.1.0",
-    });
+  it("shows nothing extra when the pinned version is installed", () => {
+    expect(haqengineAction({ ...base, installed: true, update_available: false, version: "0.1.0" })).toEqual({ label: null, line: null });
   });
   it("offers update from an older version", () => {
     expect(haqengineAction({ ...base, installed: true, update_available: true, version: "0.0.9" })).toEqual({
       label: "Update HaqEngine",
-      line: "Installed · 0.0.9 → 0.1.0",
+      line: "HaqEngine 0.0.9 → 0.1.0",
     });
   });
   it("offers update from a by-hand install of unknown version", () => {
     expect(haqengineAction({ ...base, installed: true, update_available: true, version: null })).toEqual({
       label: "Update HaqEngine",
-      line: "Installed · unknown version → 0.1.0",
+      line: "HaqEngine unknown version → 0.1.0",
     });
   });
 });

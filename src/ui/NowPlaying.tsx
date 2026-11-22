@@ -1,9 +1,11 @@
 import { ConfirmModal, Field, PanelSectionRow, showModal, SliderField } from "@decky/ui";
 import { ReactNode } from "react";
 import { ScopeResult, Settings } from "../api";
+import { HaqEngineControl } from "./useHaqEngine";
 import {
   FPS_CAPS,
   frameLimitTip,
+  haqengineAction,
   multiplierToPosition,
   PRESET_LABELS,
   PRESET_ORDER,
@@ -15,7 +17,7 @@ import {
 } from "../logic";
 import { S } from "../strings";
 import { useInfo } from "./info";
-import { Hint, PlainButton, PrimaryButton, SegmentedChoice } from "./theme";
+import { ActionChoice, Hint, InlineAction, PlainButton, PrimaryButton, SegmentedChoice } from "./theme";
 
 interface Props {
   scope: ScopeResult;
@@ -27,12 +29,13 @@ interface Props {
   onChange: (s: Settings) => void;
   onFpsCap: (cap: number) => void;
   onEngine: (engine: "lsfg" | "haqengine") => void;
+  haqengine: HaqEngineControl;
   onSaveForGame: () => void;
   onUseDefault: () => void;
 }
 
 export function NowPlaying(props: Props) {
-  const { scope, running, saved, picker, create, onMultiplier, onChange, onFpsCap, onEngine, onSaveForGame, onUseDefault } = props;
+  const { scope, running, saved, picker, create, onMultiplier, onChange, onFpsCap, onEngine, haqengine, onSaveForGame, onUseDefault } = props;
   const p = scope.profile;
   const info = {
     frameGen: useInfo(S.frameGenInfo),
@@ -81,17 +84,8 @@ export function NowPlaying(props: Props) {
           onChange={(key) => onChange({ preset: key })}
         />
       )}
-      {showEngineChoice(scope) && (
-        <SegmentedChoice
-          label={S.engine}
-          description={info.engine}
-          options={[
-            { value: "lsfg", label: "lsfg-vk" },
-            { value: "haqengine", label: "HaqEngine" },
-          ]}
-          value={scope.engine}
-          onChange={(v) => onEngine(v as "lsfg" | "haqengine")}
-        />
+      {scope.enabled && haqengine.status && (
+        <EngineRow scope={scope} haqengine={haqengine} description={info.engine} onEngine={onEngine} />
       )}
       <SegmentedChoice
         label={S.fpsCap}
@@ -130,5 +124,45 @@ export function NowPlaying(props: Props) {
         </>
       )}
     </>
+  );
+}
+
+function EngineRow({
+  scope,
+  haqengine,
+  description,
+  onEngine,
+}: {
+  scope: ScopeResult;
+  haqengine: HaqEngineControl;
+  description?: string;
+  onEngine: (engine: "lsfg" | "haqengine") => void;
+}) {
+  const status = haqengine.status!;
+  const action = haqengineAction(status);
+  const button = action.label && (
+    <InlineAction
+      note={action.line}
+      action={haqengine.busy ? S.haqengineInstalling : action.label}
+      disabled={haqengine.busy}
+      onClick={haqengine.install}
+    />
+  );
+  if (!showEngineChoice({ ...scope, haqengine_installed: status.installed })) {
+    return <ActionChoice label={S.engine}>{button}</ActionChoice>;
+  }
+  return (
+    <SegmentedChoice
+      label={S.engine}
+      description={description}
+      options={[
+        { value: "lsfg", label: "lsfg-vk" },
+        { value: "haqengine", label: "HaqEngine" },
+      ]}
+      value={scope.engine}
+      onChange={(v) => onEngine(v as "lsfg" | "haqengine")}
+    >
+      {button}
+    </SegmentedChoice>
   );
 }

@@ -205,10 +205,10 @@ export function layersWarning(layers: string[]): string | null {
 }
 
 export function haqengineAction(s: { installed: boolean; update_available: boolean; version: string | null; pinned: string }): {
-  label: string;
-  line: string;
+  label: string | null;
+  line: string | null;
 } {
-  if (!s.installed) return { label: "Install HaqEngine", line: `Not installed · ${s.pinned} available` };
-  if (!s.update_available) return { label: "Reinstall HaqEngine", line: `Installed · ${s.version ?? s.pinned}` };
-  return { label: "Update HaqEngine", line: `Installed · ${s.version ?? "unknown version"} → ${s.pinned}` };
+  if (!s.installed) return { label: "Install HaqEngine", line: "HaqEngine is not installed yet." };
+  if (!s.update_available) return { label: null, line: null };
+  return { label: "Update HaqEngine", line: `HaqEngine ${s.version ?? "unknown version"} → ${s.pinned}` };
 }

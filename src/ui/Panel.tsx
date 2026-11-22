@@ -42,7 +42,7 @@ import { InfoContext } from "./info";
 import { LaunchSection } from "./LaunchSection";
 import { DangerZone, ResetConfigButton, Troubleshooting } from "./MoreSection";
 import { FlatpakSection } from "./FlatpakSection";
-import { HaqEngineSection } from "./HaqEngineSection";
+import { useHaqEngine } from "./useHaqEngine";
 import { NowPlaying } from "./NowPlaying";
 import { loadValue, saveValue } from "./persist";
 import { StatusCard } from "./StatusCard";
@@ -57,7 +57,6 @@ const KEY_ADVANCED = "haqgen.showAdvanced";
 const KEY_MORE = "haqgen.showMore";
 const KEY_DANGER = "haqgen.showDanger";
 const KEY_FLATPAK = "haqgen.showFlatpak";
-const KEY_HAQENGINE = "haqgen.showHaqEngine";
 const DEFAULT_KEY = 0;
 
 function toast(body: string) {
@@ -105,7 +104,6 @@ export function Panel() {
   const [showMore, setShowMore] = useState(() => loadValue(KEY_MORE) === "1");
   const [showDanger, setShowDanger] = useState(() => loadValue(KEY_DANGER) === "1");
   const [showFlatpak, setShowFlatpak] = useState(() => loadValue(KEY_FLATPAK) === "1");
-  const [showHaqEngine, setShowHaqEngine] = useState(() => loadValue(KEY_HAQENGINE) === "1");
   const mounted = useRef(true);
   const loaded = useRef<ScopeResult | null>(null);
 
@@ -121,7 +119,6 @@ export function Panel() {
   useEffect(() => saveValue(KEY_MORE, showMore ? "1" : "0"), [showMore]);
   useEffect(() => saveValue(KEY_DANGER, showDanger ? "1" : "0"), [showDanger]);
   useEffect(() => saveValue(KEY_FLATPAK, showFlatpak ? "1" : "0"), [showFlatpak]);
-  useEffect(() => saveValue(KEY_HAQENGINE, showHaqEngine ? "1" : "0"), [showHaqEngine]);
 
   const refresh = useCallback(async () => {
     try {
@@ -143,6 +140,7 @@ export function Panel() {
       if (mounted.current) setMessage(describeError(e));
     }
   }, [appId, gameName]);
+  const haqengine = useHaqEngine(loadScope);
 
   const loadProfiles = useCallback(async () => {
     try {
@@ -389,6 +387,7 @@ export function Panel() {
             onChange={onChange}
             onFpsCap={onFpsCap}
             onEngine={onEngine}
+            haqengine={haqengine}
             onSaveForGame={onSaveForGame}
             onUseDefault={onUseDefault}
           />
@@ -400,8 +399,6 @@ export function Panel() {
         )}
         <CollapseRow label={S.flatpak} open={showFlatpak} onToggle={() => setShowFlatpak((v) => !v)} />
         {showFlatpak && <FlatpakSection />}
-        <CollapseRow label={S.haqengine} open={showHaqEngine} onToggle={() => setShowHaqEngine((v) => !v)} />
-        {showHaqEngine && <HaqEngineSection onChanged={loadScope} />}
         <CollapseRow label={S.troubleshooting} open={showMore} onToggle={() => setShowMore((v) => !v)} />
         {showMore && (
           <Troubleshooting debugLog={state.debug_log ?? false} onDebugLog={onDebugLog} onShowLog={onShowLog} onConfigReset={reloadAll} />
@@ -409,6 +406,7 @@ export function Panel() {
         <CollapseRow danger label={S.dangerZone} open={showDanger} onToggle={() => setShowDanger((v) => !v)} />
         {showDanger && (
           <DangerZone
+            haqengine={haqengine}
             onReset={onReset}
             onRemoved={async () => {
               needsRestart();

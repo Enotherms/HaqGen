@@ -67,12 +67,14 @@ export function SegmentedChoice<T extends string>({
   options,
   value,
   onChange,
+  children,
 }: {
   label: string;
   description?: string;
   options: { value: T; label: string }[];
   value: T | null;
   onChange: (value: T) => void;
+  children?: ReactNode;
 }) {
   return (
     <PanelSectionRow>
@@ -95,8 +97,37 @@ export function SegmentedChoice<T extends string>({
           })}
         </Focusable>
         {description && <div style={{ fontSize: 12, color: C.hint, marginTop: STEP }}>{description}</div>}
+        {children}
       </div>
     </PanelSectionRow>
+  );
+}
+
+/** A labelled block with one full-width action, laid out like SegmentedChoice. */
+export function ActionChoice({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <PanelSectionRow>
+      <div style={{ width: "100%", padding: `${STEP}px 0` }}>
+        <div style={{ fontSize: 15, marginBottom: STEP }}>{label}</div>
+        {children}
+      </div>
+    </PanelSectionRow>
+  );
+}
+
+/** A note plus one compact action, placed inside SegmentedChoice or ActionChoice. */
+export function InlineAction({ note, action, disabled, onClick }: { note: string | null; action: string; disabled?: boolean; onClick: () => void }) {
+  return (
+    <>
+      {note && <div style={{ fontSize: 12, color: C.hint, margin: `${STEP}px 0` }}>{note}</div>}
+      <DialogButton
+        disabled={disabled}
+        onClick={onClick}
+        style={{ width: "100%", padding: "0 4px", height: 36, minHeight: 36, fontSize: 13, borderRadius: 4, opacity: disabled ? 0.5 : 1 }}
+      >
+        {action}
+      </DialogButton>
+    </>
   );
 }
 
