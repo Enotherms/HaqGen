@@ -53,7 +53,8 @@ class Plugin:
         decky.logger.info("HaqGen unloaded")
 
     async def get_state(self) -> dict:
-        return await _call(service.get_state, _paths())
+        state = await _call(service.get_state, _paths())
+        return {**state, "plugin_version": getattr(decky, "DECKY_PLUGIN_VERSION", None)}
 
     async def setup(self) -> dict:
         result = await _call(service.setup, _paths(), service.download, LSFG_VK_URL, LSFG_VK_SHA256)

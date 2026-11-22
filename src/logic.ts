@@ -212,3 +212,7 @@ export function haqengineAction(s: { installed: boolean; update_available: boole
   if (!s.update_available) return { label: null, line: null };
   return { label: "Update HaqEngine", line: `HaqEngine ${s.version ?? "unknown version"} → ${s.pinned}` };
 }
+
+export function footerLine(version: string | null | undefined): string {
+  return version ? `HaqGen ${version}` : "HaqGen";
+}

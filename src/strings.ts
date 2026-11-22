@@ -22,6 +22,11 @@ export const S = {
   saved: "✓ Saved",
 
   frameGen: "Frame generation",
+  multiplier: "Multiplier",
+  sectionLaunch: "Launch",
+  sectionSettings: "Settings",
+  resetAndRemove: "Reset and remove",
+  source: "GitHub",
   frameGenInfo: "2x–4x apply now. Off/on: restart game.",
   preset: "Preset",
   presetCustom: "Custom",

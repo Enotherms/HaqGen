@@ -204,3 +204,12 @@ def test_plugin_exposes_haqengine_methods(plugin_module):
     assert r["ok"] is True and r["installed"] is False and r["pinned"] == "0.1.0"
     r = asyncio.run(p.install_haqengine())
     assert r == {"ok": False, "error": "not_set_up"}
+
+
+def test_state_reports_plugin_version(plugin_module, monkeypatch):
+    monkeypatch.setattr(plugin_module.decky, "DECKY_PLUGIN_VERSION", "0.1.2", raising=False)
+    assert asyncio.run(plugin_module.Plugin().get_state())["plugin_version"] == "0.1.2"
+
+
+def test_state_plugin_version_is_none_when_unknown(plugin_module):
+    assert asyncio.run(plugin_module.Plugin().get_state())["plugin_version"] is None

@@ -1,9 +1,10 @@
 import { DialogButton, Focusable, PanelSectionRow } from "@decky/ui";
 import { CSSProperties, ReactNode } from "react";
-import { FaChevronDown, FaChevronUp, FaInfoCircle } from "react-icons/fa";
+import { FaChevronDown, FaChevronUp, FaGithub, FaInfoCircle } from "react-icons/fa";
 import { C } from "../colors";
 
 const STEP = 8;
+const LABEL: CSSProperties = { fontSize: 16, color: C.text, marginBottom: STEP };
 const buttonBase: CSSProperties = { width: "100%", minWidth: 0, borderRadius: 4 };
 const row: CSSProperties = { padding: `${STEP / 2}px 0`, width: "100%" };
 
@@ -79,7 +80,7 @@ export function SegmentedChoice<T extends string>({
   return (
     <PanelSectionRow>
       <div style={{ width: "100%", padding: `${STEP}px 0` }}>
-        <div style={{ fontSize: 15, marginBottom: STEP }}>{label}</div>
+        <div style={LABEL}>{label}</div>
         <Focusable flow-children="horizontal" style={{ display: "flex", gap: STEP }}>
           {options.map((o) => {
             const active = o.value === value;
@@ -108,7 +109,7 @@ export function ActionChoice({ label, children }: { label: string; children: Rea
   return (
     <PanelSectionRow>
       <div style={{ width: "100%", padding: `${STEP}px 0` }}>
-        <div style={{ fontSize: 15, marginBottom: STEP }}>{label}</div>
+        <div style={LABEL}>{label}</div>
         {children}
       </div>
     </PanelSectionRow>
@@ -128,6 +129,50 @@ export function InlineAction({ note, action, disabled, onClick }: { note: string
         {action}
       </DialogButton>
     </>
+  );
+}
+
+/** A quiet heading that splits one collapsible section into parts, with a divider above it. */
+export function SubHeading({ children, danger }: { children: ReactNode; danger?: boolean }) {
+  return (
+    <PanelSectionRow>
+      <div
+        style={{
+          width: "100%",
+          marginTop: STEP,
+          paddingTop: STEP * 1.5,
+          borderTop: "1px solid rgba(255, 255, 255, 0.1)",
+          fontSize: 12,
+          fontWeight: 600,
+          letterSpacing: "0.04em",
+          textTransform: "uppercase",
+          color: danger ? C.danger : C.hint,
+        }}
+      >
+        {children}
+      </div>
+    </PanelSectionRow>
+  );
+}
+
+/** The version and a link to the source, at the bottom of the panel. */
+export function Footer({ text, linkLabel, onLink }: { text: string; linkLabel: string; onLink: () => void }) {
+  return (
+    <PanelSectionRow>
+      <Focusable
+        flow-children="horizontal"
+        style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: STEP, width: "100%", padding: `${STEP}px 0` }}
+      >
+        <span style={{ fontSize: 12, color: C.hint }}>{text}</span>
+        <DialogButton
+          onClick={onLink}
+          style={{ display: "flex", alignItems: "center", gap: 6, width: "auto", minWidth: 0, height: 32, minHeight: 32, padding: "0 12px", fontSize: 13, borderRadius: 4 }}
+        >
+          <FaGithub aria-hidden="true" />
+          {linkLabel}
+        </DialogButton>
+      </Focusable>
+    </PanelSectionRow>
   );
 }
 

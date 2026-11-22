@@ -301,3 +301,15 @@ describe("haqengineAction", () => {
     });
   });
 });
+
+import { footerLine } from "./logic";
+
+describe("footerLine", () => {
+  it("names the version when known", () => {
+    expect(footerLine("0.1.2")).toBe("HaqGen 0.1.2");
+  });
+  it("falls back to the name alone", () => {
+    expect(footerLine(null)).toBe("HaqGen");
+    expect(footerLine(undefined)).toBe("HaqGen");
+  });
+});

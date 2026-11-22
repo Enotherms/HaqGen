@@ -1,4 +1,4 @@
-import { ConfirmModal, PanelSection, PanelSectionRow, showModal } from "@decky/ui";
+import { ConfirmModal, Navigation, PanelSection, PanelSectionRow, showModal } from "@decky/ui";
 import { toaster } from "@decky/api";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -34,6 +34,7 @@ import {
   layersWarning,
   positionToMultiplier,
   engineMultiplier,
+  footerLine,
   restartBanner,
 } from "../logic";
 import { S } from "../strings";
@@ -48,15 +49,14 @@ import { loadValue, saveValue } from "./persist";
 import { StatusCard } from "./StatusCard";
 import { CreateProfile } from "./CreateProfile";
 import { ProfilePicker } from "./ProfilePicker";
-import { CollapseRow, ThemeStyle, TopBar } from "./theme";
+import { CollapseRow, Footer, SubHeading, ThemeStyle, TopBar } from "./theme";
 import { useRunningGame } from "./useRunningGame";
 
 const KEY_INFO = "haqgen.showInfo";
+const SOURCE_URL = "https://github.com/Enotherms/HaqGen";
 const KEY_PICKED = "haqgen.pickedProfile";
 const KEY_ADVANCED = "haqgen.showAdvanced";
 const KEY_MORE = "haqgen.showMore";
-const KEY_DANGER = "haqgen.showDanger";
-const KEY_FLATPAK = "haqgen.showFlatpak";
 const DEFAULT_KEY = 0;
 
 function toast(body: string) {
@@ -102,8 +102,6 @@ export function Panel() {
   const [showInfo, setShowInfo] = useState(() => loadValue(KEY_INFO) === "1");
   const [showAdvanced, setShowAdvanced] = useState(() => loadValue(KEY_ADVANCED) === "1");
   const [showMore, setShowMore] = useState(() => loadValue(KEY_MORE) === "1");
-  const [showDanger, setShowDanger] = useState(() => loadValue(KEY_DANGER) === "1");
-  const [showFlatpak, setShowFlatpak] = useState(() => loadValue(KEY_FLATPAK) === "1");
   const mounted = useRef(true);
   const loaded = useRef<ScopeResult | null>(null);
 
@@ -117,8 +115,6 @@ export function Panel() {
   useEffect(() => saveValue(KEY_PICKED, picked ? JSON.stringify(picked) : null), [picked]);
   useEffect(() => saveValue(KEY_ADVANCED, showAdvanced ? "1" : "0"), [showAdvanced]);
   useEffect(() => saveValue(KEY_MORE, showMore ? "1" : "0"), [showMore]);
-  useEffect(() => saveValue(KEY_DANGER, showDanger ? "1" : "0"), [showDanger]);
-  useEffect(() => saveValue(KEY_FLATPAK, showFlatpak ? "1" : "0"), [showFlatpak]);
 
   const refresh = useCallback(async () => {
     try {
@@ -369,7 +365,9 @@ export function Panel() {
         {notice && <Notice text={notice} />}
         {state.error && <ResetConfigButton onDone={reloadAll} />}
         {banner && <Notice strong text={`⟳ ${banner}`} />}
-        {scope && (
+      </PanelSection>
+      {scope && (
+        <PanelSection title={S.frameGen}>
           <NowPlaying
             scope={scope}
             running={isRunning}
@@ -391,30 +389,46 @@ export function Panel() {
             onSaveForGame={onSaveForGame}
             onUseDefault={onUseDefault}
           />
-        )}
+        </PanelSection>
+      )}
+      <PanelSection title={S.sectionLaunch}>
         <LaunchSection onCopy={onCopy} />
+      </PanelSection>
+      <PanelSection title={S.sectionSettings}>
         <CollapseRow label={S.advanced} open={showAdvanced} onToggle={() => setShowAdvanced((v) => !v)} />
         {showAdvanced && scope && (
-          <Advanced profile={scope.profile} onChange={onChange} gamescope={scope.gamescope_compat} onGamescope={onGamescope} />
+          <>
+            <Advanced profile={scope.profile} onChange={onChange} gamescope={scope.gamescope_compat} onGamescope={onGamescope} />
+            <SubHeading>{S.flatpak}</SubHeading>
+            <FlatpakSection />
+          </>
         )}
-        <CollapseRow label={S.flatpak} open={showFlatpak} onToggle={() => setShowFlatpak((v) => !v)} />
-        {showFlatpak && <FlatpakSection />}
         <CollapseRow label={S.troubleshooting} open={showMore} onToggle={() => setShowMore((v) => !v)} />
         {showMore && (
-          <Troubleshooting debugLog={state.debug_log ?? false} onDebugLog={onDebugLog} onShowLog={onShowLog} onConfigReset={reloadAll} />
+          <>
+            <Troubleshooting debugLog={state.debug_log ?? false} onDebugLog={onDebugLog} onShowLog={onShowLog} onConfigReset={reloadAll} />
+            <SubHeading danger>{S.resetAndRemove}</SubHeading>
+            <DangerZone
+              haqengine={haqengine}
+              onReset={onReset}
+              onRemoved={async () => {
+                needsRestart();
+                setPicked(null);
+                await reloadAll();
+              }}
+            />
+          </>
         )}
-        <CollapseRow danger label={S.dangerZone} open={showDanger} onToggle={() => setShowDanger((v) => !v)} />
-        {showDanger && (
-          <DangerZone
-            haqengine={haqengine}
-            onReset={onReset}
-            onRemoved={async () => {
-              needsRestart();
-              setPicked(null);
-              await reloadAll();
-            }}
-          />
-        )}
+      </PanelSection>
+      <PanelSection>
+        <Footer
+          text={footerLine(state.plugin_version)}
+          linkLabel={S.source}
+          onLink={() => {
+            Navigation.CloseSideMenus();
+            Navigation.NavigateToExternalWeb(SOURCE_URL);
+          }}
+        />
       </PanelSection>
     </InfoContext.Provider>
   );

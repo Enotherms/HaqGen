@@ -11,6 +11,7 @@ export interface State {
   other_layers: string[];
   debug_log: boolean;
   error: string | null;
+  plugin_version?: string | null;
 }
 
 export interface ProfileInfo {

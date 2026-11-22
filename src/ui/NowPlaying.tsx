@@ -63,7 +63,7 @@ export function NowPlaying(props: Props) {
       )}
       <PanelSectionRow>
         <SliderField
-          label={S.frameGen}
+          label={S.multiplier}
           description={info.frameGen}
           value={multiplierToPosition(scope.enabled, p.multiplier)}
           min={0}
