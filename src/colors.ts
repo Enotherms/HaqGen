@@ -11,6 +11,8 @@ export const C = {
   success: "#7fd18b",
   text: "#ffffff",
   hint: "#b6b9bc",
+  warningSurface: "#2a2821",
+  divider: "#2b3239",
 } as const;
 
 function luminance(hex: string): number {
@@ -36,4 +38,7 @@ export const PAIRS: [string, string, string, number][] = [
   ["hint text", C.hint, C.bg, 4.5],
   ["body text on button", C.text, C.surface, 4.5],
   ["focus outline vs button", C.accentFocus, C.surface, 3],
+  ["restart tag text", C.warning, C.warningSurface, 4.5],
+  ["danger heading on background", C.danger, C.bg, 4.5],
+  ["divider vs background", C.divider, C.bg, 1.3],
 ];

@@ -146,7 +146,7 @@ export function RestartTag({ children }: { children: ReactNode }) {
         fontSize: 11,
         fontWeight: 600,
         color: C.warning,
-        background: "rgba(242, 184, 75, 0.12)",
+        background: C.warningSurface,
       }}
     >
       <FaRedo aria-hidden="true" style={{ width: 9, height: 9 }} />
@@ -176,7 +176,7 @@ export function SubHeading({ children, danger }: { children: ReactNode; danger?:
           width: "100%",
           marginTop: STEP,
           paddingTop: STEP * 1.5,
-          borderTop: "1px solid rgba(255, 255, 255, 0.1)",
+          borderTop: `1px solid ${C.divider}`,
           fontSize: 12,
           fontWeight: 600,
           letterSpacing: "0.04em",
