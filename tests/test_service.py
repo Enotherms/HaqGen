@@ -938,3 +938,72 @@ def test_delete_profile_removes_haqengine_marker(paths):
     service.set_engine(paths, 7, "haqengine", 2)
     service.delete_profile(paths, 7, "G")
     assert not (games_dir(paths) / "7.haqengine").exists()
+
+
+def _fake_lsfg(paths):
+    from haqgen.install import REQUIRED_FILES
+    for rel in REQUIRED_FILES:
+        p = paths.local_dir / rel
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text("x")
+
+
+def _haqengine_release(tmp_path):
+    from tests.test_haqengine import fetcher, make_release
+    release, sha = make_release(tmp_path)
+    return fetcher(release), sha
+
+
+def test_install_haqengine_requires_setup(paths, tmp_path):
+    fetch, sha = _haqengine_release(tmp_path)
+    r = service.install_haqengine(paths, fetch, "https://x.invalid/h.tar.gz", sha, "0.1.0")
+    assert r == {"ok": False, "error": "not_set_up"}
+
+
+def test_install_haqengine_reports_status(paths, tmp_path):
+    _fake_lsfg(paths)
+    fetch, sha = _haqengine_release(tmp_path)
+    r = service.install_haqengine(paths, fetch, "https://x.invalid/h.tar.gz", sha, "0.1.0")
+    assert (r["ok"], r["installed"], r["version"], r["update_available"]) == (True, True, "0.1.0", False)
+    assert service.get_scope(paths, None, None)["haqengine_installed"] is True
+    assert service.haqengine_status(paths, "0.1.0") == {"ok": True, **{k: r[k] for k in ("installed", "version", "pinned", "update_available")}}
+
+
+def test_install_haqengine_failure_has_detail(paths, tmp_path):
+    _fake_lsfg(paths)
+    fetch, _ = _haqengine_release(tmp_path)
+    r = service.install_haqengine(paths, fetch, "https://x.invalid/h.tar.gz", "0" * 64, "0.1.0")
+    assert r["ok"] is False and r["error"] == "install_failed" and "Checksum" in r["detail"]
+
+
+def test_remove_all_removes_installed_haqengine(paths, tmp_path):
+    from haqgen import haqengine
+    _fake_lsfg(paths)
+    fetch, sha = _haqengine_release(tmp_path)
+    assert service.install_haqengine(paths, fetch, "https://x.invalid/h.tar.gz", sha, "0.1.0")["ok"]
+    service.remove_all(paths, confirmed=True, run=lambda *a, **k: None)
+    assert not haqengine.lib_path(paths.local_dir).exists()
+    assert not haqengine.layer_manifest_path(paths.local_dir).exists()
+
+
+def test_remove_haqengine_keeps_game_markers(paths, tmp_path):
+    from haqgen import haqengine
+    _fake_lsfg(paths)
+    service.save_profile(paths, 7, "G", {})
+    assert service.set_engine(paths, 7, "haqengine", 2)["ok"]
+    fetch, sha = _haqengine_release(tmp_path)
+    assert service.install_haqengine(paths, fetch, "https://x.invalid/h.tar.gz", sha, "0.1.0")["ok"]
+    r = service.remove_haqengine(paths, "0.1.0")
+    assert (r["ok"], r["installed"]) == (True, False)
+    assert (games_dir(paths) / "7.haqengine").exists()
+    assert not haqengine.lib_path(paths.local_dir).exists()
+
+
+def test_remove_haqengine_refuses_foreign_manifest(paths):
+    from haqgen import haqengine
+    m = haqengine.layer_manifest_path(paths.local_dir)
+    m.parent.mkdir(parents=True)
+    m.write_text('{"layer": {"name": "VK_LAYER_OTHER"}}')
+    r = service.remove_haqengine(paths, "0.1.0")
+    assert r["ok"] is False and r["error"] == "not_haqengine" and r["detail"]
+    assert m.exists()

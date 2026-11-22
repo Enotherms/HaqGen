@@ -188,3 +188,19 @@ def test_changes_still_wait_for_the_write_lock(plugin_module):
 def test_flatpak_methods_exist(plugin_module):
     p = plugin_module.Plugin()
     assert hasattr(p, "flatpak_state") and hasattr(p, "flatpak_set")
+
+
+def test_main_pins_the_haqengine_release(plugin_module):
+    import re
+    assert plugin_module.HAQENGINE_VERSION == "0.1.0"
+    assert re.fullmatch(r"[0-9a-f]{64}", plugin_module.HAQENGINE_SHA256)
+    assert plugin_module.HAQENGINE_URL.startswith("https://github.com/Enotherms/HaqEngine/")
+    assert "/v0.1.0/" in plugin_module.HAQENGINE_URL
+
+
+def test_plugin_exposes_haqengine_methods(plugin_module):
+    p = plugin_module.Plugin()
+    r = asyncio.run(p.get_haqengine())
+    assert r["ok"] is True and r["installed"] is False and r["pinned"] == "0.1.0"
+    r = asyncio.run(p.install_haqengine())
+    assert r == {"ok": False, "error": "not_set_up"}

@@ -16,6 +16,7 @@ from typing import Callable
 from .config import Config, ConfigError, Profile, load_config, needs_upgrade, save_config
 from .fsutil import atomic_write
 from . import flatpak as fp
+from . import haqengine as he
 from .install import allowed_roots, install_lsfg_vk, lsfg_present
 from .lsfg_cli import healthcheck, validate_config
 from .locate import (
@@ -804,3 +805,23 @@ def _sync_flatpak(paths: Paths) -> None:
         fp.disable_overrides(paths.home(), app_id, added)
         state["apps"][app_id] = fp.enable_overrides(paths.home(), app_id, wanted)
     _save_flatpak(paths, state)
+
+
+def haqengine_status(paths: Paths, pinned: str) -> dict:
+    return {"ok": True, **he.engine_status(paths.local_dir, paths.data_dir, pinned)}
+
+
+def install_haqengine(paths: Paths, fetch: Callable, url: str, sha256: str, version: str) -> dict:
+    if not _installed(paths):
+        return _fail("not_set_up")
+    result = he.install_haqengine(paths.local_dir, paths.data_dir, paths.manifest_path, fetch, url, sha256, version)
+    if not result.ok:
+        return {"ok": False, "error": "install_failed", "detail": result.error}
+    return haqengine_status(paths, version)
+
+
+def remove_haqengine(paths: Paths, pinned: str) -> dict:
+    ok, reason = he.remove_haqengine(paths.local_dir, paths.data_dir, paths.manifest_path)
+    if not ok:
+        return {"ok": False, "error": "not_haqengine", "detail": reason}
+    return haqengine_status(paths, pinned)

@@ -9,6 +9,9 @@ from haqgen.locate import default_steam_roots
 
 LSFG_VK_URL = "https://builds.lsfg-vk.dev/lsfg-vk-2.0.0.tar.xz"
 LSFG_VK_SHA256 = "08bdbdf373a111022df87dac7aa87e3b564bb841f961552e3ca85fea12b5aa74"
+HAQENGINE_VERSION = "0.1.0"
+HAQENGINE_URL = "https://github.com/Enotherms/HaqEngine/releases/download/v0.1.0/haqengine-0.1.0-x86_64-linux.tar.gz"
+HAQENGINE_SHA256 = "1a35147a525890b11dff50319e3fa26bf379adaa17d72e49523eb4bada47e288"
 
 
 _LOCK = threading.Lock()
@@ -56,6 +59,23 @@ class Plugin:
         result = await _call(service.setup, _paths(), service.download, LSFG_VK_URL, LSFG_VK_SHA256)
         if not result.get("ok"):
             decky.logger.error("HaqGen setup failed: %s", result)
+        return result
+
+    async def get_haqengine(self) -> dict:
+        return await _read(service.haqengine_status, _paths(), HAQENGINE_VERSION)
+
+    async def install_haqengine(self) -> dict:
+        result = await _call(
+            service.install_haqengine, _paths(), service.download, HAQENGINE_URL, HAQENGINE_SHA256, HAQENGINE_VERSION
+        )
+        if not result.get("ok"):
+            decky.logger.error("HaqEngine install failed: %s", result)
+        return result
+
+    async def remove_haqengine(self) -> dict:
+        result = await _call(service.remove_haqengine, _paths(), HAQENGINE_VERSION)
+        if not result.get("ok"):
+            decky.logger.error("HaqEngine removal failed: %s", result)
         return result
 
     async def list_games(self) -> list:
