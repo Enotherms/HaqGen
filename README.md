@@ -131,6 +131,10 @@ To install a development build, copy `dist/`, `main.py`, `plugin.json`, `package
 
 </details>
 
+## About this project
+
+HaqGen is a personal hobby project, built in my spare time to improve my own gaming on the Steam Deck. It has no commercial purpose: it is free, has no paid features and is not sold or monetised in any way. It is shared openly in case it helps other players. Support and updates are provided on a best-effort basis.
+
 ## Credits
 
 - [lsfg-vk](https://lsfg-vk.dev): the Vulkan layer that runs Lossless Scaling frame generation on Linux.
