@@ -6,7 +6,7 @@ Lossless Scaling frame generation for the Steam Deck, installed and managed from
 
 HaqGen is a [Decky Loader](https://decky.xyz) plugin built on [lsfg-vk](https://lsfg-vk.dev), the Linux implementation of Lossless Scaling's frame generation. It handles installation and configuration, provides a single launch option for all games, and offers simple controls while keeping the technical settings available.
 
-<img src="assets/screenshot-main.png" width="260" alt="HaqGen main controls"> <img src="assets/screenshot-engine.png" width="260" alt="HaqGen presets, engine choice and FPS cap"> <img src="assets/screenshot-advanced.png" width="260" alt="HaqGen advanced settings and troubleshooting">
+<img src="assets/screenshot-main.png" width="260" alt="HaqGen frame generation controls: profile, multiplier and presets"> <img src="assets/screenshot-engine.png" width="260" alt="HaqGen presets, engine choice and FPS cap"> <img src="assets/screenshot-advanced.png" width="260" alt="HaqGen advanced settings with short descriptions and restart notes">
 
 **Status:** early release (v0.1), tested on a Steam Deck OLED. Bug reports and feedback are welcome in [Issues](https://github.com/Enotherms/HaqGen/issues).
 
@@ -22,7 +22,7 @@ HaqGen is a [Decky Loader](https://decky.xyz) plugin built on [lsfg-vk](https://
 - **Troubleshooting:** health check using lsfg-vk's validator, debug logging, a log viewer and configuration repair.
 - **Clean removal:** lists every item before deletion and removes only what HaqGen created.
 - **No background activity:** nothing runs during gameplay unless you interact with the panel.
-- **HaqEngine (experimental):** once [HaqEngine](https://github.com/Enotherms/HaqEngine) is installed, an *Engine* choice in the game panel runs it instead of lsfg-vk for that game. HaqEngine needs no Lossless Scaling DLL; install it from its [releases](https://github.com/Enotherms/HaqEngine/releases) page.
+- **HaqEngine (experimental):** install [HaqEngine](https://github.com/Enotherms/HaqEngine) with one button in the panel's *Engine* row (pinned release, checksum-verified), then pick lsfg-vk or HaqEngine per game. Updates and removal are in the panel too.
 
 ## Quick start
 
