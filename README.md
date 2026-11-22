@@ -22,6 +22,7 @@ HaqGen is a [Decky Loader](https://decky.xyz) plugin built on [lsfg-vk](https://
 - **Troubleshooting:** health check using lsfg-vk's validator, debug logging, a log viewer and configuration repair.
 - **Clean removal:** lists every item before deletion and removes only what HaqGen created.
 - **No background activity:** nothing runs during gameplay unless you interact with the panel.
+- **HaqEngine (experimental):** once [HaqEngine](https://github.com/Enotherms/HaqEngine) is installed, an *Engine* choice in the game panel runs it instead of lsfg-vk for that game. HaqEngine needs no Lossless Scaling DLL; install it from its [releases](https://github.com/Enotherms/HaqEngine/releases) page.
 
 ## Quick start
 
@@ -135,6 +136,7 @@ To install a development build, copy `dist/`, `main.py`, `plugin.json`, `package
 - [lsfg-vk](https://lsfg-vk.dev): the Vulkan layer that runs Lossless Scaling frame generation on Linux.
 - [Lossless Scaling](https://store.steampowered.com/app/993090/Lossless_Scaling/): the frame generation technology.
 - [Decky Loader](https://decky.xyz) and its plugin template.
+- [HaqEngine](https://github.com/Enotherms/HaqEngine): the optional, experimental frame generation engine by the same author.
 
 HaqGen is an independent project by [Enotherms](https://github.com/Enotherms) and is not affiliated with Lossless Scaling, lsfg-vk or Decky Loader.
 
