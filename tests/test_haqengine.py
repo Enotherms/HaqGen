@@ -196,3 +196,22 @@ def test_manifest_check_handles_missing_and_bad_files(tmp_path):
     good.write_text(TEMPLATE)
     assert haqengine.is_haqengine_manifest(good) is True
     assert isinstance(Path(good), Path)
+
+
+def test_failed_manifest_removal_keeps_engine_retryable(tmp_path, monkeypatch):
+    local, data, _ = dirs(tmp_path)
+    release, sha = make_release(tmp_path)
+    assert install(tmp_path, release, sha).ok
+    manifest = haqengine.layer_manifest_path(local)
+    real_unlink = Path.unlink
+
+    def failing_unlink(self, *args, **kwargs):
+        if self == manifest:
+            raise PermissionError("read-only")
+        return real_unlink(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "unlink", failing_unlink)
+    ok, reason = haqengine.remove_haqengine(local, data)
+    assert ok is False and reason
+    assert haqengine.lib_path(local).exists()
+    assert haqengine.engine_status(local, data, VERSION)["installed"] is True

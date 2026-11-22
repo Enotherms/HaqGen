@@ -150,8 +150,8 @@ def remove_haqengine(local_dir: Path, data_dir: Path, record_to: Path | None = N
     if problem:
         return False, problem
     try:
-        lib_path(local_dir).unlink(missing_ok=True)
         layer_manifest_path(local_dir).unlink(missing_ok=True)
+        lib_path(local_dir).unlink(missing_ok=True)
         version_path(data_dir).unlink(missing_ok=True)
     except OSError as exc:
         return False, str(exc)
