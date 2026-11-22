@@ -6,7 +6,7 @@ Lossless Scaling frame generation for the Steam Deck, installed and managed from
 
 HaqGen is a [Decky Loader](https://decky.xyz) plugin built on [lsfg-vk](https://lsfg-vk.dev), the Linux implementation of Lossless Scaling's frame generation. It handles installation and configuration, provides a single launch option for all games, and offers simple controls while keeping the technical settings available.
 
-<img src="assets/screenshot-main.png" width="300" alt="HaqGen main controls"> <img src="assets/screenshot-advanced.png" width="300" alt="HaqGen advanced settings and troubleshooting">
+<img src="assets/screenshot-main.png" width="260" alt="HaqGen main controls"> <img src="assets/screenshot-engine.png" width="260" alt="HaqGen presets, engine choice and FPS cap"> <img src="assets/screenshot-advanced.png" width="260" alt="HaqGen advanced settings and troubleshooting">
 
 **Status:** early release (v0.1), tested on a Steam Deck OLED. Bug reports and feedback are welcome in [Issues](https://github.com/Enotherms/HaqGen/issues).
 
