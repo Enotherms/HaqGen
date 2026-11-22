@@ -17,6 +17,7 @@ import {
   setDebugLog,
   setEnabled,
   setFpsCap,
+  setEngine,
   setGamescopeCompat,
   setup,
   Settings,
@@ -32,6 +33,7 @@ import {
   editTarget,
   layersWarning,
   positionToMultiplier,
+  engineMultiplier,
   restartBanner,
 } from "../logic";
 import { S } from "../strings";
@@ -196,6 +198,7 @@ export function Panel() {
       const wasOn = loaded.current?.enabled ?? true;
       const r = await setEnabled(target, multiplier !== null);
       if (multiplier !== null) await saveActive({ multiplier });
+      if (multiplier !== null && loaded.current?.engine === "haqengine") await setEngine(target, "haqengine", engineMultiplier(multiplier));
       if (!mounted.current) return;
       if (!r.ok) setMessage(describeError(r.error));
       if (wasOn !== (multiplier !== null)) needsRestart();
@@ -264,6 +267,17 @@ export function Panel() {
     setScope((cur) => (cur ? { ...cur, fps_cap: cap } : cur));
     const target = loaded.current?.scope === "game" ? appId : null;
     const r = await setFpsCap(target, cap);
+    if (!mounted.current) return;
+    if (!r.ok) setMessage(describeError(r.error));
+    else setSavedAt(Date.now());
+    needsRestart();
+    await loadScope();
+  };
+
+  const onEngine = async (engine: "lsfg" | "haqengine") => {
+    setScope((cur) => (cur ? { ...cur, engine } : cur));
+    const target = loaded.current?.scope === "game" ? appId : null;
+    const r = await setEngine(target, engine, engineMultiplier(scope?.profile.multiplier ?? 2));
     if (!mounted.current) return;
     if (!r.ok) setMessage(describeError(r.error));
     else setSavedAt(Date.now());
@@ -370,6 +384,7 @@ export function Panel() {
             onMultiplier={onMultiplier}
             onChange={onChange}
             onFpsCap={onFpsCap}
+            onEngine={onEngine}
             onSaveForGame={onSaveForGame}
             onUseDefault={onUseDefault}
           />

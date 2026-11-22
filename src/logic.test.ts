@@ -243,3 +243,19 @@ describe("Flatpak messages", () => {
     expect(describeError("flatpak_app_not_found")).toMatch(/not found/);
   });
 });
+
+import { engineMultiplier } from "./logic";
+
+describe("engineMultiplier", () => {
+  it("follows the slider's 2x to 4x", () => {
+    expect(engineMultiplier(2)).toBe(2);
+    expect(engineMultiplier(3)).toBe(3);
+    expect(engineMultiplier(4)).toBe(4);
+  });
+  it("uses 2x when the multiplier is off, 1x or out of range", () => {
+    expect(engineMultiplier(1)).toBe(2);
+    expect(engineMultiplier(0)).toBe(2);
+    expect(engineMultiplier(9)).toBe(4);
+    expect(engineMultiplier(Number.NaN)).toBe(2);
+  });
+});

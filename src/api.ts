@@ -77,12 +77,15 @@ export interface ScopeResult {
   enabled: boolean;
   gamescope_compat: boolean;
   fps_cap: number;
+  engine: "lsfg" | "haqengine";
+  haqengine_multiplier: number | null;
   error: string | null;
 }
 
 export const getScope = callable<[number | null, string | null], ScopeResult>("get_scope");
 export const saveDefault = callable<[Settings], Result>("save_default");
 export const setFpsCap = callable<[number | null, number], Result>("set_fps_cap");
+export const setEngine = callable<[number | null, string, number], Result>("set_engine");
 export interface FlatpakApp {
   app_id: string;
   name: string;

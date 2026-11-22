@@ -117,6 +117,11 @@ export function multiplierToPosition(exists: boolean, multiplier: number): numbe
   return Math.max(1, Math.min(3, Math.round(multiplier) - 1));
 }
 
+export function engineMultiplier(multiplier: number): number {
+  if (!Number.isFinite(multiplier)) return 2;
+  return Math.max(2, Math.min(4, Math.round(multiplier)));
+}
+
 export function positionToMultiplier(position: number): number | null {
   if (position <= 0) return null;
   return Math.min(4, Math.round(position) + 1);

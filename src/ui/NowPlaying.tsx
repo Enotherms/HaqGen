@@ -25,17 +25,19 @@ interface Props {
   onMultiplier: (position: number) => void;
   onChange: (s: Settings) => void;
   onFpsCap: (cap: number) => void;
+  onEngine: (engine: "lsfg" | "haqengine") => void;
   onSaveForGame: () => void;
   onUseDefault: () => void;
 }
 
 export function NowPlaying(props: Props) {
-  const { scope, running, saved, picker, create, onMultiplier, onChange, onFpsCap, onSaveForGame, onUseDefault } = props;
+  const { scope, running, saved, picker, create, onMultiplier, onChange, onFpsCap, onEngine, onSaveForGame, onUseDefault } = props;
   const p = scope.profile;
   const info = {
     frameGen: useInfo(S.frameGenInfo),
     preset: useInfo(S.presetInfo),
     fpsCap: useInfo(S.fpsCapInfo),
+    engine: useInfo(S.engineInfo),
     save: useInfo(S.saveForGameInfo),
     del: useInfo(S.useDefaultInfo),
     tip: useInfo(frameLimitTip(p.multiplier)),
@@ -76,6 +78,18 @@ export function NowPlaying(props: Props) {
           options={PRESET_ORDER.map((key) => ({ value: key, label: PRESET_LABELS[key] }))}
           value={(p.preset as (typeof PRESET_ORDER)[number] | null) ?? null}
           onChange={(key) => onChange({ preset: key })}
+        />
+      )}
+      {scope.enabled && (
+        <SegmentedChoice
+          label={S.engine}
+          description={info.engine}
+          options={[
+            { value: "lsfg", label: "lsfg-vk" },
+            { value: "haqengine", label: "HaqEngine" },
+          ]}
+          value={scope.engine}
+          onChange={(v) => onEngine(v as "lsfg" | "haqengine")}
         />
       )}
       <SegmentedChoice

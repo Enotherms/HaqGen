@@ -27,6 +27,8 @@ export const S = {
   presetCustom: "Custom",
   presetInfo: "Applies now.",
   fpsCap: "FPS cap",
+  engine: "Engine (experimental)",
+  engineInfo: "HaqEngine replaces lsfg-vk. Restart game.",
   fpsCapInfo: "Caps the game's real FPS. Restart game.",
 
   saveForGame: (game: string) => `Save as profile for ${game}`,
