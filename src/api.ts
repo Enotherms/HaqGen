@@ -107,3 +107,17 @@ export interface ProfileEntry {
 }
 
 export const listProfiles = callable<[], ProfileEntry[]>("list_profiles");
+
+export interface HaqEngineStatus {
+  ok: boolean;
+  installed: boolean;
+  version: string | null;
+  pinned: string;
+  update_available: boolean;
+  error?: string;
+  detail?: string;
+}
+
+export const getHaqEngine = callable<[], HaqEngineStatus>("get_haqengine");
+export const installHaqEngine = callable<[], HaqEngineStatus>("install_haqengine");
+export const removeHaqEngine = callable<[], HaqEngineStatus>("remove_haqengine");

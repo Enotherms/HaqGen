@@ -16,6 +16,8 @@ const ERROR_TEXT: Record<string, string> = {
   flatpak_app_not_found: "That Flatpak app was not found. It may have been uninstalled.",
   not_running: "Start the game first, then press Detect.",
   game_not_found: "This game's install folder was not found.",
+  not_set_up: "Press Set up first, then install HaqEngine.",
+  not_haqengine: "The files at HaqEngine's install location belong to something else, so they were left alone.",
 };
 
 export function describeError(err: unknown, detail?: string): string {
@@ -200,4 +202,13 @@ export function layersWarning(layers: string[]): string | null {
   return names.length === 1
     ? `${names[0]} layer found. It may interfere.`
     : `${names.join(", ")} layers found. They may interfere.`;
+}
+
+export function haqengineAction(s: { installed: boolean; update_available: boolean; version: string | null; pinned: string }): {
+  label: string;
+  line: string;
+} {
+  if (!s.installed) return { label: "Install HaqEngine", line: `Not installed · ${s.pinned} available` };
+  if (!s.update_available) return { label: "Reinstall HaqEngine", line: `Installed · ${s.version ?? s.pinned}` };
+  return { label: "Update HaqEngine", line: `Installed · ${s.version ?? "unknown version"} → ${s.pinned}` };
 }
