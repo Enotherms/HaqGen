@@ -17,7 +17,7 @@ import {
 } from "../logic";
 import { S } from "../strings";
 import { useInfo } from "./info";
-import { ActionChoice, Hint, InlineAction, PlainButton, PrimaryButton, SegmentedChoice } from "./theme";
+import { ActionChoice, Desc, Hint, InlineAction, PlainButton, PrimaryButton, SegmentedChoice } from "./theme";
 
 interface Props {
   scope: ScopeResult;
@@ -64,7 +64,7 @@ export function NowPlaying(props: Props) {
       <PanelSectionRow>
         <SliderField
           label={S.multiplier}
-          description={info.frameGen}
+          description={Desc({ text: info.frameGen, restart: S.restartOnOff })}
           value={multiplierToPosition(scope.enabled, p.multiplier)}
           min={0}
           max={3}
@@ -85,11 +85,11 @@ export function NowPlaying(props: Props) {
         />
       )}
       {scope.enabled && haqengine.status && (
-        <EngineRow scope={scope} haqengine={haqengine} description={info.engine} onEngine={onEngine} />
+        <EngineRow scope={scope} haqengine={haqengine} description={Desc({ text: info.engine, restart: S.restartGame })} onEngine={onEngine} />
       )}
       <SegmentedChoice
         label={S.fpsCap}
-        description={info.fpsCap}
+        description={Desc({ text: info.fpsCap, restart: S.restartGame })}
         options={FPS_CAPS.map((cap) => ({ value: String(cap), label: cap === 0 ? "Off" : String(cap) }))}
         value={String(scope.fps_cap ?? 0)}
         onChange={(v) => onFpsCap(Number(v))}
@@ -135,7 +135,7 @@ function EngineRow({
 }: {
   scope: ScopeResult;
   haqengine: HaqEngineControl;
-  description?: string;
+  description?: ReactNode;
   onEngine: (engine: "lsfg" | "haqengine") => void;
 }) {
   const status = haqengine.status!;

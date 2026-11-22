@@ -1,6 +1,6 @@
 import { DialogButton, Focusable, PanelSectionRow } from "@decky/ui";
 import { CSSProperties, ReactNode } from "react";
-import { FaChevronDown, FaChevronUp, FaGithub, FaInfoCircle } from "react-icons/fa";
+import { FaChevronDown, FaChevronUp, FaGithub, FaInfoCircle, FaRedo } from "react-icons/fa";
 import { C } from "../colors";
 
 const STEP = 8;
@@ -71,7 +71,7 @@ export function SegmentedChoice<T extends string>({
   children,
 }: {
   label: string;
-  description?: string;
+  description?: ReactNode;
   options: { value: T; label: string }[];
   value: T | null;
   onChange: (value: T) => void;
@@ -128,6 +128,41 @@ export function InlineAction({ note, action, disabled, onClick }: { note: string
       >
         {action}
       </DialogButton>
+    </>
+  );
+}
+
+/** An amber tag saying a change takes effect only after a restart; always visible. */
+export function RestartTag({ children }: { children: ReactNode }) {
+  return (
+    <span
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 4,
+        marginTop: 4,
+        padding: "1px 6px",
+        borderRadius: 4,
+        fontSize: 11,
+        fontWeight: 600,
+        color: C.warning,
+        background: "rgba(242, 184, 75, 0.12)",
+      }}
+    >
+      <FaRedo aria-hidden="true" style={{ width: 9, height: 9 }} />
+      {children}
+    </span>
+  );
+}
+
+/** A setting's description: optional text, then an optional restart tag on its own line. */
+export function Desc({ text, restart }: { text?: string; restart?: string }): ReactNode {
+  if (!text && !restart) return undefined;
+  return (
+    <>
+      {text && <span>{text}</span>}
+      {text && restart && <br />}
+      {restart && <RestartTag>{restart}</RestartTag>}
     </>
   );
 }

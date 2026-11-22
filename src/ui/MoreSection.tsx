@@ -6,7 +6,7 @@ import { describeError } from "../logic";
 import { S } from "../strings";
 import { useInfo } from "./info";
 import { RemoveData } from "./RemoveData";
-import { Hint, PlainButton } from "./theme";
+import { Desc, Hint, PlainButton } from "./theme";
 import { HaqEngineControl } from "./useHaqEngine";
 
 function HealthModal({ ok, summary, details, closeModal }: { ok: boolean; summary: string; details: string; closeModal?: () => void }) {
@@ -48,7 +48,6 @@ export function Troubleshooting({
   onConfigReset: () => void;
 }) {
   const [checking, setChecking] = useState(false);
-  const debugInfo = useInfo(S.debugLogNote);
   return (
     <>
       <PlainButton
@@ -65,7 +64,7 @@ export function Troubleshooting({
         {checking ? S.checking : S.healthCheck}
       </PlainButton>
       <PanelSectionRow>
-        <ToggleField label={S.debugLog} description={debugInfo} checked={debugLog} onChange={onDebugLog} />
+        <ToggleField label={S.debugLog} description={Desc({ text: S.debugLogNote, restart: S.restartGame })} checked={debugLog} onChange={onDebugLog} />
       </PanelSectionRow>
       <PlainButton onClick={onShowLog}>{S.showLog}</PlainButton>
       <ResetConfigButton onDone={onConfigReset} />

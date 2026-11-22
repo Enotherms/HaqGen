@@ -4,15 +4,13 @@ import { useEffect, useRef, useState } from "react";
 import { FlatpakApp, flatpakSet, flatpakState } from "../api";
 import { describeError } from "../logic";
 import { S } from "../strings";
-import { useInfo } from "./info";
-import { Hint } from "./theme";
+import { Desc, Hint } from "./theme";
 
 export function FlatpakSection() {
   const [apps, setApps] = useState<FlatpakApp[] | null>(null);
   const [available, setAvailable] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
   const mounted = useRef(true);
-  const hint = useInfo(S.flatpakHint);
 
   const load = async () => {
     try {
@@ -50,7 +48,7 @@ export function FlatpakSection() {
   if (apps.length === 0) return <Hint>{S.flatpakNone}</Hint>;
   return (
     <>
-      {hint && <Hint>{hint}</Hint>}
+      <Hint>{Desc({ text: S.flatpakHint, restart: S.restartApp })}</Hint>
       {busy && <Hint>{S.flatpakInstalling}</Hint>}
       {apps.map((app) => (
         <PanelSectionRow key={app.app_id}>

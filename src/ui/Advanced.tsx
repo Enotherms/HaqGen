@@ -2,7 +2,7 @@ import { PanelSectionRow, SliderField, ToggleField } from "@decky/ui";
 import { ProfileInfo, Settings } from "../api";
 import { S } from "../strings";
 import { useInfo } from "./info";
-import { Hint } from "./theme";
+import { Desc, Hint } from "./theme";
 
 export function Advanced({
   profile,
@@ -15,9 +15,6 @@ export function Advanced({
   gamescope: boolean;
   onGamescope: (on: boolean) => void;
 }) {
-  const flowInfo = useInfo(S.flowScaleInfo);
-  const perfInfo = useInfo(S.perfModelInfo);
-  const gsInfo = useInfo(S.gamescopeNote);
   const hint = useInfo(S.advancedHint);
   return (
     <>
@@ -25,7 +22,7 @@ export function Advanced({
       <PanelSectionRow>
         <SliderField
           label={S.flowScale}
-          description={flowInfo}
+          description={S.flowScaleInfo}
           value={profile.flow_scale}
           min={0.25}
           max={1}
@@ -35,12 +32,13 @@ export function Advanced({
         />
       </PanelSectionRow>
       <PanelSectionRow>
-        <ToggleField label={S.gamescope} description={gsInfo} checked={gamescope} onChange={onGamescope} />
+        <ToggleField label={S.gamescope} description={Desc({ text: S.gamescopeNote, restart: S.restartGame })} checked={gamescope} onChange={onGamescope} />
       </PanelSectionRow>
       <PanelSectionRow>
         <ToggleField
           label={S.perfModel}
-          description={perfInfo}
+          description={S.perfModelInfo}
+          bottomSeparator="none"
           checked={profile.performance_mode}
           onChange={(v) => onChange({ performance_mode: v })}
         />
