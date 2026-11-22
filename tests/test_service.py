@@ -903,6 +903,14 @@ def test_engine_defaults_to_lsfg(paths):
     assert (scope["engine"], scope["haqengine_multiplier"]) == ("lsfg", None)
 
 
+def test_scope_reports_whether_haqengine_is_installed(paths):
+    assert service.get_scope(paths, None, None)["haqengine_installed"] is False
+    layers = paths.local_dir / "share" / "vulkan" / "implicit_layer.d"
+    layers.mkdir(parents=True, exist_ok=True)
+    (layers / "haqengine.json").write_text("{}")
+    assert service.get_scope(paths, None, None)["haqengine_installed"] is True
+
+
 def test_set_engine_haqengine_writes_marker_and_scope_reports_it(paths):
     service.save_profile(paths, 7, "G", {})
     assert service.set_engine(paths, 7, "haqengine", 3)["ok"] is True

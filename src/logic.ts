@@ -122,6 +122,10 @@ export function engineMultiplier(multiplier: number): number {
   return Math.max(2, Math.min(4, Math.round(multiplier)));
 }
 
+export function showEngineChoice(scope: { enabled: boolean; haqengine_installed: boolean; engine: "lsfg" | "haqengine" }): boolean {
+  return scope.enabled && (scope.haqengine_installed || scope.engine === "haqengine");
+}
+
 export function positionToMultiplier(position: number): number | null {
   if (position <= 0) return null;
   return Math.min(4, Math.round(position) + 1);

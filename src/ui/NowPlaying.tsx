@@ -9,6 +9,7 @@ import {
   PRESET_ORDER,
   scopeLine,
   scopeTitle,
+  showEngineChoice,
   SLIDER_LABELS,
   summaryLine,
 } from "../logic";
@@ -80,7 +81,7 @@ export function NowPlaying(props: Props) {
           onChange={(key) => onChange({ preset: key })}
         />
       )}
-      {scope.enabled && (
+      {showEngineChoice(scope) && (
         <SegmentedChoice
           label={S.engine}
           description={info.engine}

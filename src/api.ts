@@ -79,6 +79,7 @@ export interface ScopeResult {
   fps_cap: number;
   engine: "lsfg" | "haqengine";
   haqengine_multiplier: number | null;
+  haqengine_installed: boolean;
   error: string | null;
 }
 

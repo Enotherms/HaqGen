@@ -542,6 +542,7 @@ def get_scope(paths: Paths, app_id: int | None, game_name: str | None) -> dict:
         "fps_cap": _read_fps_cap(_marker(paths, marker_id, "fpscap")),
         "engine": "haqengine" if _read_haqengine(_marker(paths, marker_id, "haqengine")) else "lsfg",
         "haqengine_multiplier": _read_haqengine(_marker(paths, marker_id, "haqengine")),
+        "haqengine_installed": (paths.local_dir / "share" / "vulkan" / "implicit_layer.d" / "haqengine.json").is_file(),
         "error": error,
     }
 

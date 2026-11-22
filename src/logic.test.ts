@@ -244,7 +244,7 @@ describe("Flatpak messages", () => {
   });
 });
 
-import { engineMultiplier } from "./logic";
+import { engineMultiplier, showEngineChoice } from "./logic";
 
 describe("engineMultiplier", () => {
   it("follows the slider's 2x to 4x", () => {
@@ -257,5 +257,20 @@ describe("engineMultiplier", () => {
     expect(engineMultiplier(0)).toBe(2);
     expect(engineMultiplier(9)).toBe(4);
     expect(engineMultiplier(Number.NaN)).toBe(2);
+  });
+});
+
+describe("showEngineChoice", () => {
+  it("shows the choice when frame generation is on and HaqEngine is installed", () => {
+    expect(showEngineChoice({ enabled: true, haqengine_installed: true, engine: "lsfg" })).toBe(true);
+  });
+  it("hides it when HaqEngine is not installed", () => {
+    expect(showEngineChoice({ enabled: true, haqengine_installed: false, engine: "lsfg" })).toBe(false);
+  });
+  it("keeps it for a game already set to HaqEngine, so it can be switched back", () => {
+    expect(showEngineChoice({ enabled: true, haqengine_installed: false, engine: "haqengine" })).toBe(true);
+  });
+  it("hides it when frame generation is off", () => {
+    expect(showEngineChoice({ enabled: false, haqengine_installed: true, engine: "haqengine" })).toBe(false);
   });
 });
