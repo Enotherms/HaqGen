@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>HaqGen – Frame generation plugin for Steam Deck (Lossless Scaling, Decky Loader)</title>
-  <meta name="description" content="HaqGen is a free Decky Loader plugin that sets up and controls Lossless Scaling frame generation (lsfg-vk) on the Steam Deck: one launch option, per-game profiles, FPS cap and Flatpak support.">
+  <title>HaqGen – Steam Deck frame generation plugin (Lossless Scaling, lsfg-vk, Decky Loader)</title>
+  <meta name="description" content="HaqGen is a free Decky Loader plugin for Steam Deck frame generation. It sets up Lossless Scaling (lsfg-vk) with one launch option, per-game profiles, an FPS cap and Flatpak support, and can run the experimental HaqEngine.">
   <meta name="google-site-verification" content="h9O3IWPMy6pqmq39gMcyurGPsJo3G7dA95ODw9O8QWo">
   <link rel="canonical" href="https://enotherms.github.io/HaqGen/">
   <link rel="icon" href="logo.svg" type="image/svg+xml">
@@ -26,9 +26,9 @@
     "description": "Decky Loader plugin that sets up and controls Lossless Scaling frame generation (lsfg-vk) on the Steam Deck.",
     "applicationCategory": "GameApplication",
     "operatingSystem": "SteamOS",
-    "softwareVersion": "0.1.1",
+    "softwareVersion": "0.1.2",
     "url": "https://enotherms.github.io/HaqGen/",
-    "downloadUrl": "https://github.com/Enotherms/HaqGen/releases/latest",
+    "downloadUrl": "https://github.com/Enotherms/HaqGen/releases",
     "codeRepository": "https://github.com/Enotherms/HaqGen",
     "license": "https://opensource.org/license/bsd-3-clause",
     "image": "https://enotherms.github.io/HaqGen/og.png",
@@ -77,9 +77,9 @@
   <header>
     <img src="logo.svg" alt="HaqGen logo" width="112" height="112">
     <h1>HaqGen</h1>
-    <p class="tagline">Lossless Scaling frame generation for the Steam Deck</p>
+    <p class="tagline">Frame generation plugin for the Steam Deck</p>
     <div class="buttons">
-      <a class="button primary" href="https://github.com/Enotherms/HaqGen/releases/latest">Download</a>
+      <a class="button primary" href="https://github.com/Enotherms/HaqGen/releases">Download HaqGen</a>
       <a class="button" href="https://github.com/Enotherms/HaqGen">View on GitHub</a>
     </div>
     <p class="note">Free and open source · Decky Loader plugin · Early release</p>
@@ -98,7 +98,7 @@
       <img src="screenshot-advanced.png" alt="HaqGen advanced settings and troubleshooting" width="300" height="446" loading="lazy">
     </div>
 
-    <h2>Features</h2>
+    <h2>HaqGen features</h2>
     <div class="grid">
       <div class="card"><b>One-press setup</b>Installs lsfg-vk 2.0, finds your Lossless Scaling DLL and writes a valid config.</div>
       <div class="card"><b>One launch option</b>Paste <code>~/haqgen %command%</code> into any game.</div>
@@ -110,15 +110,23 @@
       <div class="card"><b>Clean removal</b>Removes only what HaqGen created, and shows the list first.</div>
     </div>
 
-    <h2>Quick start</h2>
+    <h2>Install HaqGen</h2>
     <ol>
       <li>Install <a href="https://decky.xyz">Decky Loader</a>.</li>
       <li>Install <a href="https://store.steampowered.com/app/993090/Lossless_Scaling/">Lossless Scaling</a> on Steam and switch it to the <code>lsfg-vk</code> beta branch.</li>
-      <li>In Decky settings › Developer, use <b>Install Plugin From URL</b> with the zip from the <a href="https://github.com/Enotherms/HaqGen/releases/latest">latest release</a>.</li>
+      <li>In Decky settings › Developer, use <b>Install Plugin From URL</b> with the zip from the newest <a href="https://github.com/Enotherms/HaqGen/releases">release</a>.</li>
       <li>Open HaqGen in the Quick Access menu and press <b>Set up</b>.</li>
       <li>Copy the launch option into each game: <code>~/haqgen %command%</code></li>
     </ol>
     <p>Full guide, recommended settings and game support: <a href="https://github.com/Enotherms/HaqGen#readme">README on GitHub</a>.</p>
+
+    <h2>HaqEngine (experimental)</h2>
+    <p>
+      <a href="https://github.com/Enotherms/HaqEngine">HaqEngine</a> is a second frame generation engine for the Steam Deck,
+      written in Rust as a Vulkan layer by the same author. It needs no Lossless Scaling DLL and costs about 2 ms of GPU time per real frame.
+      Once it is installed from its <a href="https://github.com/Enotherms/HaqEngine/releases">releases page</a>, HaqGen 0.1.2 and newer
+      show an <b>Engine</b> choice in the game panel, so each game can use lsfg-vk or HaqEngine.
+    </p>
   </main>
 
   <footer>
